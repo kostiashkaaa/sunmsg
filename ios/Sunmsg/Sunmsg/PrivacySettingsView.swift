@@ -789,6 +789,7 @@ struct BlockedUsersView: View {
     @State private var isLoading = true
     @State private var error: String?
     @State private var unblocking: Set<Int> = []
+    @State private var blockedLoadToken: UUID?
 
     var body: some View {
         ZStack {
@@ -869,14 +870,25 @@ struct BlockedUsersView: View {
     }
 
     private func load() async {
+        let loadToken = UUID()
+        blockedLoadToken = loadToken
         isLoading = true
-        do { blocked = try await session.api.getBlockedUsers() }
-        catch { self.error = error.localizedDescription }
+        do {
+            let users = try await session.api.getBlockedUsers()
+            guard !Task.isCancelled, blockedLoadToken == loadToken else { return }
+            blocked = users
+        } catch {
+            guard !Task.isCancelled, blockedLoadToken == loadToken else { return }
+            self.error = error.localizedDescription
+        }
+        guard blockedLoadToken == loadToken else { return }
         isLoading = false
+        blockedLoadToken = nil
     }
 
     private func unblock(_ user: BlockedUser) {
         guard !unblocking.contains(user.id) else { return }
+        blockedLoadToken = nil
         unblocking.insert(user.id)
         Task {
             do {
