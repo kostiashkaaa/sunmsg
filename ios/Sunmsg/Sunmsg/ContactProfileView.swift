@@ -430,10 +430,10 @@ struct ContactProfileView: View {
         }
         do {
             let page = try await session.api.getSharedContentCandidates(chatId: chatId, limit: 80)
-            let privateKey = KeychainService.loadPrivateKey()
             let myId = session.bootstrap?.user.id ?? 0
             let messages = page.messages
             let sharedBodies = await Task.detached(priority: .userInitiated) {
+                let privateKey = KeychainService.loadPrivateKey()
                 var bodies: [Int: String] = [:]
                 bodies.reserveCapacity(messages.count)
                 for message in messages {
