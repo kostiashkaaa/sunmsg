@@ -1738,6 +1738,8 @@ struct ChatView: View {
         let isPinned = pinnedMessageIds.contains(messageId)
         if SocketClient.shared.state != .connected {
             sendError = "Нет соединения — закрепление будет отправлено после переподключения."
+        } else {
+            sendError = nil
         }
         SocketClient.shared.emit(isPinned ? "unpin_message" : "pin_message", [
             "chat_id": contact.chatId,
