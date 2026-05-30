@@ -860,12 +860,14 @@ struct ChatView: View {
     }
 
     private func invalidateTimeline() {
-        timelineRows = ChatMessageTimelineView.makeRows(
+        let nextRows = ChatMessageTimelineView.makeRows(
             messages: messages,
             decryptedTexts: decryptedTexts,
             myId: myId,
             isGroup: contact.isGroup
         )
+        guard nextRows != timelineRows else { return }
+        timelineRows = nextRows
         timelineVersion &+= 1
     }
 
