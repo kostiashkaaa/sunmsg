@@ -3573,9 +3573,10 @@ struct AppearanceSettingsView: View {
         guard let item else { return }
         do {
             guard let data = try await item.loadTransferable(type: Data.self) else { return }
-            guard let jpeg = await Task.detached(priority: .userInitiated) {
+            let jpegData = await Task.detached(priority: .userInitiated, operation: { () -> Data? in
                 Self.resizedJPEGData(from: data, maxDimension: 1440)
-            }.value else { return }
+            }).value
+            guard let jpeg = jpegData else { return }
             backgroundImageDataURL = "data:image/jpeg;base64,\(jpeg.base64EncodedString())"
             chatMode = "custom"
             saveAppearance()
