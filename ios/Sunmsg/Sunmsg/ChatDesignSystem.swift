@@ -144,6 +144,17 @@ enum ChatDesignMetrics {
         static let strokeWidth: CGFloat = 0.6
     }
 
+    enum Toast {
+        static let horizontalPadding: CGFloat = 16
+        static let verticalPadding: CGFloat = 8
+        static let topPadding: CGFloat = 8
+        static let surfaceOpacity: Double = 0.94
+        static let strokeWidth: CGFloat = 0.5
+        static let shadowOpacity: Double = 0.10
+        static let shadowRadius: CGFloat = 8
+        static let shadowY: CGFloat = 3
+    }
+
     enum Composer {
         static let sideButtonSize: CGFloat = 38
         static let sendButtonSize: CGFloat = 34

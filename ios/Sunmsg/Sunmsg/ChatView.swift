@@ -505,12 +505,17 @@ struct ChatView: View {
             Text(toast)
                 .font(.footnote.weight(.medium))
                 .foregroundStyle(Color.smText)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 9)
-                .background(Color.smSurface, in: Capsule())
-                .overlay(Capsule().stroke(Color.smBorder, lineWidth: 0.5))
-                .shadow(color: Color.black.opacity(0.14), radius: 10, x: 0, y: 4)
-                .padding(.top, 8)
+                .padding(.horizontal, ChatDesignMetrics.Toast.horizontalPadding)
+                .padding(.vertical, ChatDesignMetrics.Toast.verticalPadding)
+                .background(Color.smSurface.opacity(ChatDesignMetrics.Toast.surfaceOpacity), in: Capsule())
+                .overlay(Capsule().stroke(Color.smBorder, lineWidth: ChatDesignMetrics.Toast.strokeWidth))
+                .shadow(
+                    color: Color.black.opacity(ChatDesignMetrics.Toast.shadowOpacity),
+                    radius: ChatDesignMetrics.Toast.shadowRadius,
+                    x: 0,
+                    y: ChatDesignMetrics.Toast.shadowY
+                )
+                .padding(.top, ChatDesignMetrics.Toast.topPadding)
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
