@@ -2446,6 +2446,7 @@ struct DataMemorySettingsView: View {
     @State private var isWorking = false
     @State private var error: String?
     @State private var policySaveTask: Task<Void, Never>?
+    @State private var storageUsageToken: UUID?
 
     private struct DataMemorySnapshot: Equatable {
         let autoDownloadMedia: Bool
@@ -2606,7 +2607,9 @@ struct DataMemorySettingsView: View {
     }
 
     private func refreshStorageUsage() async {
-        storageBytes = await Task.detached(priority: .utility) {
+        let token = UUID()
+        storageUsageToken = token
+        let bytes = await Task.detached(priority: .utility) {
             let fm = FileManager.default
             let roots = [
                 fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first?.appendingPathComponent("Sunmsg", isDirectory: true),
@@ -2615,6 +2618,9 @@ struct DataMemorySettingsView: View {
             ].compactMap { $0 }
             return roots.reduce(0) { $0 + settingsDirectorySize(url: $1) }
         }.value
+        guard !Task.isCancelled, storageUsageToken == token else { return }
+        storageBytes = bytes
+        storageUsageToken = nil
     }
 
     private func clearChatCache() async {
