@@ -524,29 +524,37 @@ struct QRLoginPanel: View {
                         )
                     }.value
 
-                    await MainActor.run {
+                    let canComplete = await MainActor.run { () -> Bool in
+                        guard pollSessionId == sessionId else { return false }
                         isWaiting = false
                         isCompleting = true
                         statusText = "Ключ получен. Входим..."
+                        return true
                     }
+                    guard canComplete, !Task.isCancelled else { return }
                     try await onPrivateKeyReceived(username, privateKeyPem)
                     return
                 } catch let apiError as APIError {
+                    guard !Task.isCancelled else { return }
                     if case .serverError(let code, _) = apiError, code == 404 || code == 410 {
                         await MainActor.run {
+                            guard pollSessionId == sessionId else { return }
                             isWaiting = false
                             errorText = "QR истек. Обновите код."
                         }
                         return
                     }
                     await MainActor.run {
+                        guard pollSessionId == sessionId else { return }
                         isWaiting = false
                         isCompleting = false
                         errorText = apiError.localizedDescription
                     }
                     return
                 } catch {
+                    guard !Task.isCancelled else { return }
                     await MainActor.run {
+                        guard pollSessionId == sessionId else { return }
                         isWaiting = false
                         isCompleting = false
                         errorText = error.localizedDescription
