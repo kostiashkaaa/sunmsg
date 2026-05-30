@@ -40,6 +40,7 @@
 		A10000000000000000000106 /* MessageContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000116 /* MessageContextMenu.swift */; };
 		A10000000000000000000107 /* MessageActionSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000117 /* MessageActionSheets.swift */; };
 		A10000000000000000000108 /* QRTransferSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000118 /* QRTransferSupport.swift */; };
+		A10000000000000000000109 /* ChatDesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000119 /* ChatDesignSystem.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -77,6 +78,7 @@
 		A10000000000000000000116 /* MessageContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageContextMenu.swift; sourceTree = "<group>"; };
 		A10000000000000000000117 /* MessageActionSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageActionSheets.swift; sourceTree = "<group>"; };
 		A10000000000000000000118 /* QRTransferSupport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRTransferSupport.swift; sourceTree = "<group>"; };
+		A10000000000000000000119 /* ChatDesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDesignSystem.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -111,6 +113,7 @@
 				A10000000000000000000110 /* ChatHeaderView.swift */,
 				A10000000000000000000111 /* ChatComposerBar.swift */,
 				A10000000000000000000112 /* ChatMessageTimelineView.swift */,
+				A10000000000000000000119 /* ChatDesignSystem.swift */,
 				A10000000000000000000113 /* ChatButtonStyles.swift */,
 				A10000000000000000000115 /* ReactionPicker.swift */,
 				A10000000000000000000116 /* MessageContextMenu.swift */,
@@ -251,6 +254,7 @@
 				A10000000000000000000100 /* ChatHeaderView.swift in Sources */,
 				A10000000000000000000101 /* ChatComposerBar.swift in Sources */,
 				A10000000000000000000102 /* ChatMessageTimelineView.swift in Sources */,
+				A10000000000000000000109 /* ChatDesignSystem.swift in Sources */,
 				A10000000000000000000103 /* ChatButtonStyles.swift in Sources */,
 				A10000000000000000000105 /* ReactionPicker.swift in Sources */,
 				A10000000000000000000106 /* MessageContextMenu.swift in Sources */,
