@@ -3393,6 +3393,9 @@ struct SecuritySettingsView: View {
             Section {
                 SecureField("Текущие 24 слова", text: $recoveryPhrase)
                     .textContentType(.oneTimeCode)
+                    .onChange(of: recoveryPhrase) { _, _ in
+                        clearRotationErrorAfterEdit()
+                    }
                 Button(role: .destructive) {
                     showRotateConfirm = true
                 } label: {
@@ -3432,6 +3435,11 @@ struct SecuritySettingsView: View {
         } message: {
             Text("Все устройства выйдут из аккаунта. Войти обратно можно будет с текущими словами восстановления.")
         }
+    }
+
+    private func clearRotationErrorAfterEdit() {
+        guard !isRotating, error != nil else { return }
+        error = nil
     }
 
     private func refreshPrivateKeyState() {
