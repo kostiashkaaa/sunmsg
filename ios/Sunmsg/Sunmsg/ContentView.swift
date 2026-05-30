@@ -2342,6 +2342,26 @@ struct DataMemorySettingsView: View {
     @State private var error: String?
     @State private var policySaveTask: Task<Void, Never>?
 
+    private struct DataMemorySnapshot: Equatable {
+        let autoDownloadMedia: Bool
+        let autoDownloadPhotos: Bool
+        let autoDownloadVideos: Bool
+        let filesLimitMb: Double
+        let retentionDays: Int
+        let maxCacheMb: Int
+    }
+
+    private var dataMemorySnapshot: DataMemorySnapshot {
+        DataMemorySnapshot(
+            autoDownloadMedia: autoDownloadMedia,
+            autoDownloadPhotos: autoDownloadPhotos,
+            autoDownloadVideos: autoDownloadVideos,
+            filesLimitMb: filesLimitMb,
+            retentionDays: retentionDays,
+            maxCacheMb: maxCacheMb
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -2419,9 +2439,11 @@ struct DataMemorySettingsView: View {
     }
 
     private func loadPreferences() async {
+        let snapshot = dataMemorySnapshot
         do {
             let settings = try await session.api.getSettings()
             clientPreferences = settings.clientPreferencesObject
+            guard dataMemorySnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
         } catch {
             self.error = error.localizedDescription
@@ -2597,6 +2619,24 @@ struct ChatBehaviorSettingsView: View {
     @State private var error: String?
     @State private var saveTask: Task<Void, Never>?
 
+    private struct ChatBehaviorSnapshot: Equatable {
+        let sendShortcut: String
+        let timeFormat: String
+        let animationsEnabled: Bool
+        let performanceMode: String
+        let motionLevel: String
+    }
+
+    private var chatBehaviorSnapshot: ChatBehaviorSnapshot {
+        ChatBehaviorSnapshot(
+            sendShortcut: sendShortcut,
+            timeFormat: timeFormat,
+            animationsEnabled: animationsEnabled,
+            performanceMode: performanceMode,
+            motionLevel: motionLevel
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -2636,9 +2676,11 @@ struct ChatBehaviorSettingsView: View {
     }
 
     private func load() async {
+        let snapshot = chatBehaviorSnapshot
         do {
             let settings = try await session.api.getSettings()
             clientPreferences = settings.clientPreferencesObject
+            guard chatBehaviorSnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
         } catch { self.error = error.localizedDescription }
     }
@@ -2752,6 +2794,24 @@ struct SidebarLabelSettingsView: View {
     @State private var citySaveTask: Task<Void, Never>?
     @State private var saveTask: Task<Void, Never>?
 
+    private struct SidebarLabelSnapshot: Equatable {
+        let enabled: Bool
+        let source: String
+        let city: String
+        let rotateSeconds: Int
+        let metrics: Set<String>
+    }
+
+    private var sidebarLabelSnapshot: SidebarLabelSnapshot {
+        SidebarLabelSnapshot(
+            enabled: enabled,
+            source: source,
+            city: city,
+            rotateSeconds: rotateSeconds,
+            metrics: metrics
+        )
+    }
+
     var body: some View {
         Form {
             Section {
@@ -2799,9 +2859,11 @@ struct SidebarLabelSettingsView: View {
     }
 
     private func load() async {
+        let snapshot = sidebarLabelSnapshot
         do {
             let settings = try await session.api.getSettings()
             clientPreferences = settings.clientPreferencesObject
+            guard sidebarLabelSnapshot == snapshot else { return }
             SettingsClientPreferences.apply(clientPreferences)
             metrics = Set(SettingsClientPreferences.localWeatherMetrics())
         } catch { self.error = error.localizedDescription }
