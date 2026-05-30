@@ -7,10 +7,40 @@ enum ChatScrollIntent: Equatable {
     case none
 }
 
+struct ChatTimelineRow: Identifiable, Equatable {
+    let id: Int
+    let message: ChatMessage
+    let decryptedText: String?
+    let isFromMe: Bool
+    let showSender: Bool
+    let isTail: Bool
+    let showsDate: Bool
+
+    static func == (lhs: ChatTimelineRow, rhs: ChatTimelineRow) -> Bool {
+        lhs.id == rhs.id
+            && lhs.decryptedText == rhs.decryptedText
+            && lhs.isFromMe == rhs.isFromMe
+            && lhs.showSender == rhs.showSender
+            && lhs.isTail == rhs.isTail
+            && lhs.showsDate == rhs.showsDate
+            && lhs.message.message == rhs.message.message
+            && lhs.message.messageType == rhs.message.messageType
+            && lhs.message.createdAt == rhs.message.createdAt
+            && lhs.message.senderUserId == rhs.message.senderUserId
+            && lhs.message.senderDisplayName == rhs.message.senderDisplayName
+            && lhs.message.senderUsername == rhs.message.senderUsername
+            && lhs.message.replyToId == rhs.message.replyToId
+            && lhs.message.replyMessage == rhs.message.replyMessage
+            && lhs.message.forwardFromName == rhs.message.forwardFromName
+            && lhs.message.reactions == rhs.message.reactions
+            && lhs.message.isEdited == rhs.message.isEdited
+            && lhs.message.isRead == rhs.message.isRead
+            && lhs.message.isDelivered == rhs.message.isDelivered
+    }
+}
+
 struct ChatMessageTimelineView: View, Equatable {
-    let messages: [ChatMessage]
-    let myId: Int
-    let isGroup: Bool
+    let rows: [ChatTimelineRow]
     let hasOlderMessages: Bool
     let isLoading: Bool
     let isLoadingOlder: Bool
@@ -21,8 +51,7 @@ struct ChatMessageTimelineView: View, Equatable {
     let pinnedMessageIds: Set<Int>
     let reduceMotion: Bool
     let timelineVersion: Int
-    private let decryptedTexts: [Int: String]
-    private let decryptedTextCount: Int
+    let decryptedTextCount: Int
     private let scrollIntentSnapshot: ChatScrollIntent
     private let isPinnedToBottomSnapshot: Bool
     @Binding var scrollIntent: ChatScrollIntent
@@ -32,40 +61,8 @@ struct ChatMessageTimelineView: View, Equatable {
     let onRequestMenu: (Int) -> Void
     let onToggleSelection: (Int) -> Void
 
-    private struct MessageRenderRow: Identifiable, Equatable {
-        let id: Int
-        let message: ChatMessage
-        let decryptedText: String?
-        let isFromMe: Bool
-        let showSender: Bool
-        let isTail: Bool
-        let showsDate: Bool
-
-        static func == (lhs: MessageRenderRow, rhs: MessageRenderRow) -> Bool {
-            lhs.id == rhs.id
-                && lhs.decryptedText == rhs.decryptedText
-                && lhs.isFromMe == rhs.isFromMe
-                && lhs.showSender == rhs.showSender
-                && lhs.isTail == rhs.isTail
-                && lhs.showsDate == rhs.showsDate
-                && lhs.message.message == rhs.message.message
-                && lhs.message.messageType == rhs.message.messageType
-                && lhs.message.createdAt == rhs.message.createdAt
-                && lhs.message.senderUserId == rhs.message.senderUserId
-                && lhs.message.senderDisplayName == rhs.message.senderDisplayName
-                && lhs.message.senderUsername == rhs.message.senderUsername
-                && lhs.message.replyToId == rhs.message.replyToId
-                && lhs.message.replyMessage == rhs.message.replyMessage
-                && lhs.message.forwardFromName == rhs.message.forwardFromName
-                && lhs.message.reactions == rhs.message.reactions
-                && lhs.message.isEdited == rhs.message.isEdited
-                && lhs.message.isRead == rhs.message.isRead
-                && lhs.message.isDelivered == rhs.message.isDelivered
-        }
-    }
-
     private struct TimelineMessageRowView: View, Equatable {
-        let row: MessageRenderRow
+        let row: ChatTimelineRow
         let maxBubbleWidth: CGFloat
         let isPinned: Bool
         let isSelectionMode: Bool
@@ -109,10 +106,7 @@ struct ChatMessageTimelineView: View, Equatable {
     }
 
     init(
-        messages: [ChatMessage],
-        decryptedTexts: [Int: String],
-        myId: Int,
-        isGroup: Bool,
+        rows: [ChatTimelineRow],
         hasOlderMessages: Bool,
         isLoading: Bool,
         isLoadingOlder: Bool,
@@ -123,6 +117,7 @@ struct ChatMessageTimelineView: View, Equatable {
         pinnedMessageIds: Set<Int>,
         reduceMotion: Bool,
         timelineVersion: Int,
+        decryptedTextCount: Int,
         scrollIntent: Binding<ChatScrollIntent>,
         isPinnedToBottom: Binding<Bool>,
         onLoadOlder: @escaping () -> Void,
@@ -130,9 +125,7 @@ struct ChatMessageTimelineView: View, Equatable {
         onRequestMenu: @escaping (Int) -> Void,
         onToggleSelection: @escaping (Int) -> Void
     ) {
-        self.messages = messages
-        self.myId = myId
-        self.isGroup = isGroup
+        self.rows = rows
         self.hasOlderMessages = hasOlderMessages
         self.isLoading = isLoading
         self.isLoadingOlder = isLoadingOlder
@@ -143,8 +136,7 @@ struct ChatMessageTimelineView: View, Equatable {
         self.pinnedMessageIds = pinnedMessageIds
         self.reduceMotion = reduceMotion
         self.timelineVersion = timelineVersion
-        self.decryptedTexts = decryptedTexts
-        self.decryptedTextCount = decryptedTexts.count
+        self.decryptedTextCount = decryptedTextCount
         self.scrollIntentSnapshot = scrollIntent.wrappedValue
         self.isPinnedToBottomSnapshot = isPinnedToBottom.wrappedValue
         self._scrollIntent = scrollIntent
@@ -156,9 +148,7 @@ struct ChatMessageTimelineView: View, Equatable {
     }
 
     nonisolated static func == (lhs: ChatMessageTimelineView, rhs: ChatMessageTimelineView) -> Bool {
-        lhs.myId == rhs.myId
-            && lhs.isGroup == rhs.isGroup
-            && lhs.hasOlderMessages == rhs.hasOlderMessages
+        lhs.hasOlderMessages == rhs.hasOlderMessages
             && lhs.isLoading == rhs.isLoading
             && lhs.isLoadingOlder == rhs.isLoadingOlder
             && lhs.partnerIsTyping == rhs.partnerIsTyping
@@ -173,13 +163,13 @@ struct ChatMessageTimelineView: View, Equatable {
             && lhs.isPinnedToBottomSnapshot == rhs.isPinnedToBottomSnapshot
     }
 
-    private static func makeRows(
+    static func makeRows(
         messages: [ChatMessage],
         decryptedTexts: [Int: String],
         myId: Int,
         isGroup: Bool
-    ) -> [MessageRenderRow] {
-        var result: [MessageRenderRow] = []
+    ) -> [ChatTimelineRow] {
+        var result: [ChatTimelineRow] = []
         result.reserveCapacity(messages.count)
         let calendar = Calendar.current
 
@@ -197,7 +187,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 Self.shouldShowDate(current: $0, previous: message, calendar: calendar)
             } ?? false
             result.append(
-                MessageRenderRow(
+                ChatTimelineRow(
                     id: message.id,
                     message: message,
                     decryptedText: decryptedTexts[message.id],
@@ -225,15 +215,11 @@ struct ChatMessageTimelineView: View, Equatable {
     }
 
     var body: some View {
-        let rows = Self.makeRows(
-            messages: messages,
-            decryptedTexts: decryptedTexts,
-            myId: myId,
-            isGroup: isGroup
-        )
-
         GeometryReader { viewportProxy in
-            let maxBubbleWidth = Self.messageMaxBubbleWidth(forViewportWidth: viewportProxy.size.width)
+            let maxBubbleWidth = Self.messageMaxBubbleWidth(
+                forViewportWidth: viewportProxy.size.width,
+                isSelectionMode: isSelectionMode
+            )
 
             ScrollViewReader { proxy in
                 ScrollView {
@@ -258,7 +244,7 @@ struct ChatMessageTimelineView: View, Equatable {
                         if partnerIsTyping {
                             TypingBubbleView()
                                 .id("typing")
-                                .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom)))
+                                .transition(.opacity)
                         }
 
                         Color.clear
@@ -280,7 +266,7 @@ struct ChatMessageTimelineView: View, Equatable {
                 .coordinateSpace(name: "message_scroll")
                 .scrollIndicators(.hidden)
                 .defaultScrollAnchor(.bottom)
-                .scrollDismissesKeyboard(.never)
+                .scrollDismissesKeyboard(.interactively)
                 .onAppear { scrollToBottom(proxy, animated: false) }
                 .onPreferenceChange(MessageBottomOffsetKey.self) { bottomY in
                     updatePinnedToBottom(
@@ -288,7 +274,7 @@ struct ChatMessageTimelineView: View, Equatable {
                         viewportHeight: viewportProxy.size.height
                     )
                 }
-                .onChange(of: messages.count) { _, _ in
+                .onChange(of: rows.count) { _, _ in
                     applyScrollIntent(proxy)
                 }
                 .onChange(of: decryptedTextCount) { _, _ in
@@ -346,7 +332,7 @@ struct ChatMessageTimelineView: View, Equatable {
             return
         }
 
-        guard let last = messages.last else { return }
+        guard let last = rows.last else { return }
         performScroll(proxy, target: last.id, anchor: .bottom, animated: animated)
         isPinnedToBottom = true
     }
@@ -374,10 +360,14 @@ struct ChatMessageTimelineView: View, Equatable {
         }
     }
 
-    private static func messageMaxBubbleWidth(forViewportWidth width: CGFloat) -> CGFloat {
-        let columnWidth = max(0, width - 28)
-        guard columnWidth > 0 else { return 306 }
-        return min(306, max(0, columnWidth - 46))
+    private static func messageMaxBubbleWidth(
+        forViewportWidth width: CGFloat,
+        isSelectionMode: Bool
+    ) -> CGFloat {
+        let selectionReserve: CGFloat = isSelectionMode ? 36 : 0
+        let columnWidth = max(0, width - 24 - selectionReserve)
+        guard columnWidth > 0 else { return 0 }
+        return min(330, max(0, columnWidth * 0.78))
     }
 
     private static func shouldShowDate(
@@ -435,15 +425,17 @@ private struct DateChipView: View {
         HStack(spacing: 0) {
             Spacer(minLength: 0)
             Text(label)
-                .font(.caption2.weight(.medium))
+                .font(.caption2.weight(.semibold))
                 .foregroundStyle(Color.smMuted)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 3)
-                .background(Color.smSurface.opacity(0.86), in: Capsule())
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.thinMaterial, in: Capsule())
+                .background(Color.smSurface.opacity(0.72), in: Capsule())
                 .overlay(Capsule().stroke(Color.smBorderSoft, lineWidth: 0.5))
             Spacer(minLength: 0)
         }
-        .padding(.vertical, 5)
+        .padding(.top, 10)
+        .padding(.bottom, 4)
     }
 }
 

@@ -34,15 +34,16 @@ struct ChatComposerBar: View {
     let onStopAndSendRecording: () -> Void
 
     @State private var recordingPulse = false
-    @State private var keyboardKeepAliveText = ""
 
     private enum Metrics {
-        static let controlSize: CGFloat = 44
-        static let inputRadius: CGFloat = 22
-        static let rowSpacing: CGFloat = 7
-        static let horizontalPadding: CGFloat = 12
-        static let iconSize: CGFloat = 22
-        static let innerButtonSize: CGFloat = 36
+        static let sideButtonSize: CGFloat = 38
+        static let sendButtonSize: CGFloat = 34
+        static let inputMinHeight: CGFloat = 38
+        static let inputRadius: CGFloat = 19
+        static let rowSpacing: CGFloat = 6
+        static let horizontalPadding: CGFloat = 10
+        static let iconSize: CGFloat = 21
+        static let innerButtonSize: CGFloat = 32
     }
 
     private var trimmedText: String {
@@ -72,10 +73,11 @@ struct ChatComposerBar: View {
                 }
             }
             .padding(.horizontal, Metrics.horizontalPadding)
-            .padding(.top, 6)
-            .padding(.bottom, 6)
+            .padding(.top, 7)
+            .padding(.bottom, 7)
         }
-        .background(Color.smBg.ignoresSafeArea(edges: .bottom))
+        .background(.regularMaterial)
+        .background(Color.smBg.opacity(0.94).ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(Color.smBorderSoft)
@@ -179,17 +181,16 @@ struct ChatComposerBar: View {
             PhotosPicker(selection: $selectedPhotoItem, matching: .images) {
                 Image(systemName: "paperclip")
                     .font(.system(size: Metrics.iconSize, weight: .regular))
-                    .foregroundStyle(canSendSecureMessage ? Color.smText : Color.smFaint)
-                    .frame(width: Metrics.controlSize, height: Metrics.controlSize)
-                    .background(Color.smSurface, in: Circle())
-                    .overlay(Circle().stroke(Color.smBorder, lineWidth: 0.8))
+                    .foregroundStyle(canSendSecureMessage ? Color.smAccent : Color.smFaint)
+                    .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
+                    .contentShape(Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.92))
             .disabled(!canSendSecureMessage || isSending || isUploadingMedia)
             .accessibilityLabel("Вложение")
         } else {
             Color.clear
-                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
                 .accessibilityHidden(true)
         }
     }
@@ -201,6 +202,9 @@ struct ChatComposerBar: View {
                     Text(placeholder)
                         .font(.body.weight(.medium))
                         .foregroundStyle(Color.smFaint)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .truncationMode(.tail)
                         .allowsHitTesting(false)
                 }
 
@@ -217,84 +221,69 @@ struct ChatComposerBar: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 6)
+            .padding(.vertical, 5)
 
             trailingInputButton
         }
-        .padding(.leading, 16)
-        .padding(.trailing, 5)
-        .frame(minHeight: Metrics.controlSize)
-        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
+        .padding(.leading, 14)
+        .padding(.trailing, 4)
+        .frame(minHeight: Metrics.inputMinHeight)
+        .background(Color.smSurface.opacity(0.96), in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous)
-                .stroke(isComposerFocused ? Color.smAccent.opacity(0.58) : Color.smBorder, lineWidth: 0.8)
+                .stroke(isComposerFocused ? Color.smAccent.opacity(0.58) : Color.smBorderSoft, lineWidth: 0.8)
         )
     }
 
     private var recordingCapsule: some View {
-        ZStack(alignment: .leading) {
-            keyboardKeepAliveField
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color.red)
+                    .frame(width: 8, height: 8)
+                    .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
+                    .animation(
+                        reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
+                        value: recordingPulse
+                    )
+                    .onAppear { recordingPulse = true }
+                    .onDisappear { recordingPulse = false }
 
-            HStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(Color.red)
-                        .frame(width: 8, height: 8)
-                        .opacity(reduceMotion ? 1.0 : (recordingPulse ? 1.0 : 0.35))
-                        .animation(
-                            reduceMotion ? nil : .easeInOut(duration: 0.55).repeatForever(autoreverses: true),
-                            value: recordingPulse
-                        )
-                        .onAppear { recordingPulse = true }
-                        .onDisappear { recordingPulse = false }
-
-                    Text(formatRecordingTime(recordingDuration))
-                        .font(.body.monospacedDigit().weight(.semibold))
-                        .foregroundStyle(Color.smText)
-                        .fixedSize(horizontal: true, vertical: false)
-                }
-
-                Spacer(minLength: 8)
-
-                Button(action: onCancelRecording) {
-                    Text("Отмена")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(Color.smAccent)
-                        .frame(minWidth: 76)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Отменить запись")
-
-                Spacer(minLength: 8)
+                Text(formatRecordingTime(recordingDuration))
+                    .font(.body.monospacedDigit().weight(.semibold))
+                    .foregroundStyle(Color.smText)
+                    .fixedSize(horizontal: true, vertical: false)
             }
-            .padding(.horizontal, 14)
+
+            Spacer(minLength: 8)
+
+            Button(action: onCancelRecording) {
+                Text("Отмена")
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Color.smAccent)
+                    .frame(minWidth: 76)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Отменить запись")
+
+            Spacer(minLength: 8)
         }
+        .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
-        .frame(minHeight: Metrics.controlSize)
+        .frame(minHeight: Metrics.inputMinHeight)
         .background(Color.smSurface.opacity(0.96), in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous)
-                .stroke(Color.smBorder, lineWidth: 0.8)
+                .stroke(Color.smBorderSoft, lineWidth: 0.8)
         )
-    }
-
-    private var keyboardKeepAliveField: some View {
-        TextField("", text: $keyboardKeepAliveText)
-            .focused(composerFocused)
-            .frame(width: 1, height: 1)
-            .opacity(0.01)
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
-            .onAppear { keyboardKeepAliveText = "" }
-            .onDisappear { keyboardKeepAliveText = "" }
     }
 
     private var recordingSendButton: some View {
         Button(action: onStopAndSendRecording) {
             Image(systemName: "arrow.up")
-                .font(.system(size: 27, weight: .semibold))
+                .font(.system(size: 20, weight: .semibold))
                 .foregroundStyle(Color.smBubbleOutText)
-                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
                 .background(Color.smAccent, in: Circle())
                 .shadow(color: Color.smAccent.opacity(0.26), radius: 5, x: 0, y: 2)
         }
@@ -327,6 +316,7 @@ struct ChatComposerBar: View {
                     .font(.system(size: 21))
                     .foregroundStyle(Color.smMuted)
                     .frame(width: Metrics.innerButtonSize, height: Metrics.innerButtonSize)
+                    .contentShape(Circle())
             }
             .accessibilityLabel("Эмодзи")
         }
@@ -337,7 +327,7 @@ struct ChatComposerBar: View {
             if isSending || isUploadingMedia {
                 ProgressView()
                     .tint(Color.smBubbleOutText)
-                    .frame(width: Metrics.controlSize, height: Metrics.controlSize)
+                    .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
                     .background(Color.smAccent, in: Circle())
             } else if editingMessageId != nil {
                 composerActionButton(
@@ -372,10 +362,24 @@ struct ChatComposerBar: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: systemName == "mic.fill" ? 26 : 21, weight: .semibold))
-                .foregroundStyle(Color.smBubbleOutText)
-                .frame(width: Metrics.controlSize, height: Metrics.controlSize)
-                .background(fill, in: Circle())
+                .font(.system(size: systemName == "mic.fill" ? 22 : 18, weight: .semibold))
+                .foregroundStyle(systemName == "mic.fill" ? fill : Color.smBubbleOutText)
+                .frame(width: Metrics.sideButtonSize, height: Metrics.sideButtonSize)
+                .background {
+                    if systemName != "mic.fill" {
+                        Circle()
+                            .fill(fill)
+                            .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                    }
+                }
+                .overlay {
+                    if systemName != "mic.fill" {
+                        Circle()
+                            .stroke(Color.smAccent.opacity(0.18), lineWidth: 0.5)
+                            .frame(width: Metrics.sendButtonSize, height: Metrics.sendButtonSize)
+                    }
+                }
+                .contentShape(Circle())
         }
         .buttonStyle(PressableStyle(scale: 0.92))
         .disabled(disabled)

@@ -8,16 +8,23 @@ struct ChatTopBarView: View {
     let onBack: () -> Void
     let onOpenProfile: () -> Void
 
+    private enum Metrics {
+        static let barHeight: CGFloat = 56
+        static let sideWidth: CGFloat = 54
+        static let backTouchSize: CGFloat = 44
+    }
+
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 0) {
             Button(action: onBack) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 21, weight: .semibold))
                     .foregroundStyle(Color.smAccent)
-                    .frame(width: 42, height: 48)
-                    .contentShape(Rectangle())
+                    .frame(width: Metrics.backTouchSize, height: Metrics.backTouchSize)
+                    .contentShape(Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.88))
+            .frame(width: Metrics.sideWidth, height: Metrics.barHeight)
             .accessibilityLabel("Back")
 
             ChatHeaderView(
@@ -27,12 +34,15 @@ struct ChatTopBarView: View {
                 isTyping: isTyping,
                 onOpenProfile: onOpenProfile
             )
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            Color.clear
+                .frame(width: Metrics.sideWidth, height: Metrics.barHeight)
+                .accessibilityHidden(true)
         }
-        .padding(.leading, 2)
-        .padding(.trailing, 12)
-        .frame(height: 50)
-        .background(Color.smBg)
+        .frame(height: Metrics.barHeight)
+        .background(.regularMaterial)
+        .background(Color.smBg.opacity(0.92))
         .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.smBorderSoft)
@@ -60,15 +70,16 @@ struct ChatHeaderView: View {
 
     var body: some View {
         Button(action: onOpenProfile) {
-            HStack(spacing: 8) {
+            HStack(spacing: 9) {
                 avatar
 
-                VStack(alignment: .leading, spacing: 1) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Text(displayName)
-                            .font(.subheadline.weight(.semibold))
+                            .font(.headline.weight(.semibold))
                             .foregroundStyle(Color.smText)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.82)
                             .layoutPriority(1)
 
                         if !contact.isGroup && !isSavedMessages {
@@ -83,10 +94,13 @@ struct ChatHeaderView: View {
                         .font(isTyping ? .caption.italic() : .caption)
                         .foregroundStyle(statusColor)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.86)
                 }
-                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .frame(minWidth: 0, maxWidth: 210, alignment: .leading)
             }
-            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 6)
+            .frame(minWidth: 0, maxWidth: .infinity, alignment: .center)
+            .frame(height: 48)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -105,20 +119,20 @@ struct ChatHeaderView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.smSurface)
                 }
-                .frame(width: 32, height: 32)
+                .frame(width: 36, height: 36)
             } else {
                 SmAvatarView(
                     name: contact.displayName,
                     avatarUrl: contact.avatarUrl,
                     isGroup: contact.isGroup,
-                    size: 32
+                    size: 36
                 )
             }
 
             if contact.isOnline && !isSavedMessages {
                 Circle()
                     .fill(Color.smOnline)
-                    .frame(width: 9, height: 9)
+                    .frame(width: 10, height: 10)
                     .overlay(Circle().stroke(Color.smBg, lineWidth: 2))
                     .accessibilityHidden(true)
             }

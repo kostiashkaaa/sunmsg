@@ -5,6 +5,7 @@ import PhotosUI
 import AVKit
 import AVFoundation
 import ImageIO
+import UIKit
 
 private struct ChatProfileDestination: Hashable {
     let contact: Contact
@@ -15,6 +16,46 @@ private struct ChatProfileDestination: Hashable {
 
     func hash(into hasher: inout Hasher) {
         hasher.combine(contact.chatId)
+    }
+}
+
+private struct ChatKeyboardAnimation: Equatable {
+    static let `default` = ChatKeyboardAnimation(
+        duration: 0.25,
+        curveRawValue: UIView.AnimationCurve.easeInOut.rawValue
+    )
+
+    let duration: TimeInterval
+    let curveRawValue: Int
+
+    init(duration: TimeInterval, curveRawValue: Int) {
+        self.duration = duration
+        self.curveRawValue = curveRawValue
+    }
+
+    init(notification: Notification) {
+        let info = notification.userInfo ?? [:]
+        let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? NSNumber)?.doubleValue
+            ?? Self.default.duration
+        let curveRawValue = (info[UIResponder.keyboardAnimationCurveUserInfoKey] as? NSNumber)?.intValue
+            ?? Self.default.curveRawValue
+        self.init(duration: duration, curveRawValue: curveRawValue)
+    }
+
+    func swiftUIAnimation(reduceMotion: Bool) -> Animation? {
+        guard !reduceMotion, duration > 0 else { return nil }
+        switch UIView.AnimationCurve(rawValue: curveRawValue) ?? .easeInOut {
+        case .easeIn:
+            return .easeIn(duration: duration)
+        case .easeOut:
+            return .easeOut(duration: duration)
+        case .linear:
+            return .linear(duration: duration)
+        case .easeInOut:
+            return .easeInOut(duration: duration)
+        @unknown default:
+            return .easeInOut(duration: duration)
+        }
     }
 }
 
@@ -39,6 +80,7 @@ struct ChatView: View {
 
     @State private var messages: [ChatMessage] = []
     @State private var decryptedTexts: [Int: String] = [:]
+    @State private var timelineRows: [ChatTimelineRow] = []
     @State private var timelineVersion = 0
     @State private var decryptionSummary: String?
     @State private var isLoading = true
@@ -78,6 +120,7 @@ struct ChatView: View {
     @State private var selectedMessageIds: Set<Int> = []
     @State private var isSelectionMode = false
     @State private var pinnedMessageIds: Set<Int> = []
+    @State private var keyboardAnimation = ChatKeyboardAnimation.default
     // Pending delete confirmation.
     @State private var pendingDelete: PendingDelete? = nil
     // A short, transient toast (e.g. "Скопировано").
@@ -168,6 +211,12 @@ struct ChatView: View {
             .onReceive(NotificationCenter.default.publisher(for: .smSocketMessage)) { note in
                 handleSocketNotification(note)
             }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+                keyboardAnimation = ChatKeyboardAnimation(notification: note)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+                keyboardAnimation = ChatKeyboardAnimation(notification: note)
+            }
             .task {
                 await loadMessages()
                 await loadDraft()
@@ -237,13 +286,10 @@ struct ChatView: View {
                 }
                 .padding(32)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if messages.isEmpty {
-                emptyHistoryView
             } else {
-                messageScrollView
+                chatContentView
             }
         }
-        .background(chatBackgroundView)
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
                 chatTopBar
@@ -252,6 +298,9 @@ struct ChatView: View {
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             composerBar
+                .transaction { transaction in
+                    transaction.animation = keyboardAnimation.swiftUIAnimation(reduceMotion: reduceMotion)
+                }
         }
         .overlayPreferenceValue(BubbleAnchorKey.self) { anchors in
             if menuTargetId != nil {
@@ -756,11 +805,8 @@ struct ChatView: View {
 
     private var messageScrollView: some View {
         ChatMessageTimelineView(
-            messages: messages,
-            decryptedTexts: decryptedTexts,
-            myId: myId,
-            isGroup: contact.isGroup,
-            hasOlderMessages: hasOlderMessages,
+            rows: timelineRows,
+            hasOlderMessages: !messages.isEmpty && hasOlderMessages,
             isLoading: isLoading,
             isLoadingOlder: isLoadingOlder,
             partnerIsTyping: partnerIsTyping,
@@ -770,6 +816,7 @@ struct ChatView: View {
             pinnedMessageIds: pinnedMessageIds,
             reduceMotion: reduceMotion,
             timelineVersion: timelineVersion,
+            decryptedTextCount: decryptedTexts.count,
             scrollIntent: $scrollIntent,
             isPinnedToBottom: $isPinnedToBottom,
             onLoadOlder: { Task { await loadOlderMessages() } },
@@ -780,11 +827,28 @@ struct ChatView: View {
         .equatable()
     }
 
+    private var chatContentView: some View {
+        ZStack {
+            messageScrollView
+
+            if messages.isEmpty {
+                emptyHistoryView
+                    .allowsHitTesting(false)
+            }
+        }
+    }
+
     private func shouldAutoScroll(for msg: ChatMessage) -> Bool {
         msg.senderUserId == myId || isPinnedToBottom
     }
 
     private func invalidateTimeline() {
+        timelineRows = ChatMessageTimelineView.makeRows(
+            messages: messages,
+            decryptedTexts: decryptedTexts,
+            myId: myId,
+            isGroup: contact.isGroup
+        )
         timelineVersion &+= 1
     }
 
@@ -984,10 +1048,8 @@ struct ChatView: View {
             let ids = parseDeletedIds(payload)
             guard !ids.isEmpty else { return }
             scrollIntent = .none
-            updateWithMotion(.easeInOut(duration: 0.22)) {
-                messages.removeAll { ids.contains($0.id) }
-                invalidateTimeline()
-            }
+            messages.removeAll { ids.contains($0.id) }
+            invalidateTimeline()
             Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
 
         case "chat_draft_updated":
@@ -1548,10 +1610,8 @@ struct ChatView: View {
             "request_id": UUID().uuidString,
         ])
         scrollIntent = .none
-        updateWithMotion(.easeInOut(duration: 0.22)) {
-            messages.removeAll { ids.contains($0.id) }
-            invalidateTimeline()
-        }
+        messages.removeAll { ids.contains($0.id) }
+        invalidateTimeline()
         Task { await ChatLocalStore.shared.deleteMessages(ids: ids, chatId: contact.chatId) }
         clearSelection()
     }
@@ -1816,10 +1876,8 @@ struct ChatView: View {
         ])
         // Optimistic local removal.
         scrollIntent = .none
-        updateWithMotion(.easeInOut(duration: 0.22)) {
-            messages.removeAll { $0.id == id }
-            invalidateTimeline()
-        }
+        messages.removeAll { $0.id == id }
+        invalidateTimeline()
         Task { await ChatLocalStore.shared.deleteMessages(ids: [id], chatId: contact.chatId) }
         pendingDelete = nil
     }
@@ -2379,6 +2437,15 @@ struct MessageBubbleView: View {
     @AppStorage(SettingsClientPreferences.bubbleInTextKey) private var bubbleInTextHex = "#1f1b14"
     @AppStorage(SettingsClientPreferences.bubbleOpacityKey) private var bubbleOpacity = 1.0
 
+    private enum Metrics {
+        static let sideGutter: CGFloat = 42
+        static let textHorizontalPadding: CGFloat = 11
+        static let textVerticalPadding: CGFloat = 7
+        static let minTextBubbleWidth: CGFloat = 54
+        static let minReactedTextBubbleWidth: CGFloat = 98
+        static let contentSpacing: CGFloat = 5
+    }
+
     init(
         message: ChatMessage,
         decryptedText: String? = nil,
@@ -2461,7 +2528,7 @@ struct MessageBubbleView: View {
                             .padding(.trailing, 8)
                     }
 
-                    if isFromMe { Spacer(minLength: 46) }
+                    if isFromMe { Spacer(minLength: Metrics.sideGutter) }
 
                     bubbleStack
                         .frame(maxWidth: maxBubbleWidth, alignment: bubbleAlignment)
@@ -2469,7 +2536,7 @@ struct MessageBubbleView: View {
                             [message.id: $0]
                         }
 
-                    if !isFromMe { Spacer(minLength: 46) }
+                    if !isFromMe { Spacer(minLength: Metrics.sideGutter) }
 
                     if isSelectionMode && isFromMe {
                         selectionIndicator
@@ -2588,7 +2655,7 @@ struct MessageBubbleView: View {
     // MARK: - Text bubble (reactions + time live INSIDE the bubble)
 
     private var textBubble: some View {
-        VStack(alignment: message.reactions.isEmpty ? stackAlignment : .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: Metrics.contentSpacing) {
             if let replyText = replyPreviewText {
                 replyQuote(replyText)
             }
@@ -2603,9 +2670,15 @@ struct MessageBubbleView: View {
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.top, 7)
-        .padding(.bottom, 7)
+        .padding(.horizontal, Metrics.textHorizontalPadding)
+        .padding(.top, Metrics.textVerticalPadding)
+        .padding(.bottom, Metrics.textVerticalPadding)
+        .frame(
+            minWidth: message.reactions.isEmpty
+                ? Metrics.minTextBubbleWidth
+                : Metrics.minReactedTextBubbleWidth,
+            alignment: .leading
+        )
         .background(bubbleFill)
         .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
         .overlay(
@@ -2627,9 +2700,12 @@ struct MessageBubbleView: View {
                 inlineTimeRow
             }
 
-            VStack(alignment: stackAlignment, spacing: 4) {
+            VStack(alignment: .leading, spacing: 4) {
                 messageText
-                inlineTimeRow
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    inlineTimeRow
+                }
             }
         }
     }
@@ -2639,6 +2715,7 @@ struct MessageBubbleView: View {
             .font(.system(size: messageBodyBaseSize * CGFloat(messageScale)))
             .foregroundStyle(bubbleTextColor)
             .lineSpacing(1.5)
+            .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -2698,7 +2775,7 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: true)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, alignment: isFromMe ? .trailing : .leading)
     }
 
     /// Reaction chips for media/call bubbles live inside the same message block.
@@ -2708,8 +2785,8 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: false)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: maxBubbleWidth, alignment: .leading)
-        .padding(.leading, 4)
+        .frame(maxWidth: maxBubbleWidth, alignment: isFromMe ? .trailing : .leading)
+        .padding(isFromMe ? .trailing : .leading, 4)
     }
 
     private func reactionRow(onBubble: Bool) -> some View {
@@ -2723,7 +2800,7 @@ struct MessageBubbleView: View {
     private func reactionGrid(onBubble: Bool) -> some View {
         LazyVGrid(
             columns: [GridItem(.adaptive(minimum: 48, maximum: 84), spacing: 5)],
-            alignment: .leading,
+            alignment: stackAlignment,
             spacing: 4
         ) {
             ForEach(message.reactions) { r in
