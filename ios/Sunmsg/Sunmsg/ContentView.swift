@@ -4233,6 +4233,7 @@ struct AppearanceSettingsView: View {
     private func saveAppearance() {
         let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: [:])
         clientPreferences = payload
+        error = nil
         let token = UUID()
         saveTask?.cancel()
         saveToken = token
