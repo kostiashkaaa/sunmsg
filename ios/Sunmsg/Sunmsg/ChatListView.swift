@@ -987,9 +987,13 @@ struct MnemonicUnlockSheet: View {
             .filter { !$0.isEmpty }.count
     }
 
+    private var normalizedUsername: String {
+        username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+    }
+
     private var isReady: Bool {
-        let u = username.trimmingCharacters(in: .whitespaces)
-        return !u.isEmpty && wordCount == 24 && !isLoading
+        !normalizedUsername.isEmpty && wordCount == 24 && !isLoading
     }
 
     private var unlockButtonTitle: String {
@@ -1001,8 +1005,7 @@ struct MnemonicUnlockSheet: View {
 
     private func handleUnlock() {
         guard !isLoading else { return }
-        let trimmedUser = username.trimmingCharacters(in: .whitespaces).lowercased()
-            .trimmingCharacters(in: CharacterSet(charactersIn: "@"))
+        let trimmedUser = normalizedUsername
         let trimmedMnemonic = mnemonic.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedUser.isEmpty, wordCount == 24 else { return }
         isLoading = true
