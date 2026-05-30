@@ -163,13 +163,17 @@ final class SocketClient: NSObject, @unchecked Sendable {
         let delay = min(pow(2.0, Double(reconnectAttempts)), maxReconnectDelay)
         reconnectAttempts = min(reconnectAttempts + 1, 6)
 
-        reconnectTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-            guard !Task.isCancelled else { return }
-            await MainActor.run { [weak self] in
+        reconnectTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                try Task.checkCancellation()
                 guard let self, self.state == .disconnected else { return }
                 self.state = .connecting
                 self.openSocket()
+            } catch is CancellationError {
+                return
+            } catch {
+                return
             }
         }
     }
