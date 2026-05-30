@@ -246,7 +246,11 @@ struct PrivacySettingsView: View {
             voiceListenedPrivacy = s.voiceListenedPrivacy
             callPrivacy = s.callPrivacy
             publicKeySearchPrivacy = s.publicKeySearchPrivacy
-        } catch { self.error = error.localizedDescription }
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
+        }
     }
 
     private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
@@ -260,7 +264,11 @@ struct PrivacySettingsView: View {
             do {
                 try await session.api.saveSettings(payload)
                 if reconnect { await session.reconnectRealtime() }
-            } catch { self.error = error.localizedDescription }
+            } catch APIError.unauthorized {
+                session.route = .login
+            } catch {
+                self.error = error.localizedDescription
+            }
             isSaving = false
             flushQueuedSettings()
         }
