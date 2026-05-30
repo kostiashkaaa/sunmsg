@@ -30,7 +30,7 @@ struct PeopleView: View {
     @State private var handlingRequestIds: Set<String> = []
     @State private var navigateToContact: PeopleChatDestination?
     @State private var activeSheet: PeopleSheetDestination?
-    @State private var showUsernameAlert = false
+    @State private var actionError: String?
     @FocusState private var searchFocused: Bool
 
     var body: some View {
@@ -74,6 +74,16 @@ struct PeopleView: View {
                     navigateToContact = PeopleChatDestination(contact: contact)
                 }
             }
+        }
+        .alert("Не удалось начать чат", isPresented: Binding(
+            get: { actionError != nil },
+            set: { isPresented in
+                if !isPresented { actionError = nil }
+            }
+        )) {
+            Button("OK", role: .cancel) { actionError = nil }
+        } message: {
+            Text(actionError ?? "")
         }
     }
 
@@ -408,11 +418,16 @@ struct PeopleView: View {
         guard user.chatId == nil,
               !requestSent.contains(user.userId),
               !pendingRequestUserIds.contains(user.userId) else { return }
+        let username = user.username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !username.isEmpty else {
+            actionError = "У этого пользователя нет username для начала чата."
+            return
+        }
         pendingRequestUserIds.insert(user.userId)
         Task {
             defer { pendingRequestUserIds.remove(user.userId) }
             do {
-                let resp = try await APIClient.shared.startChat(username: user.username)
+                let resp = try await APIClient.shared.startChat(username: username)
                 await MainActor.run {
                     if resp.status == "existing", let sc = resp.contact {
                         let chatId = resp.chatId ?? sc.chatId
@@ -436,7 +451,15 @@ struct PeopleView: View {
                         requestSent.insert(user.userId)
                     }
                 }
-            } catch { }
+            } catch APIError.unauthorized {
+                await MainActor.run {
+                    session.route = .login
+                }
+            } catch {
+                await MainActor.run {
+                    actionError = error.localizedDescription
+                }
+            }
         }
     }
 }
