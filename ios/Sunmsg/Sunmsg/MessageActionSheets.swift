@@ -47,7 +47,9 @@ struct ForwardMessageSheet: View {
                                     .font(.caption)
                                     .foregroundStyle(Color.smFaint)
                                     .lineLimit(1)
+                                    .truncationMode(.middle)
                             }
+                            .layoutPriority(1)
 
                             Spacer(minLength: 8)
 
