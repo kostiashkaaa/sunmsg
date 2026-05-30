@@ -163,7 +163,7 @@ struct InCallView: View {
     }
 
     private var showingRemoteVideo: Bool {
-        webrtc.remoteVideoTrack != nil
+        webrtc.remoteVideoTrack != nil && (call?.remoteVideoEnabled ?? false)
     }
 
     private func callScreen(_ call: ActiveCallState) -> some View {
@@ -184,7 +184,7 @@ struct InCallView: View {
 
             // Remote video fills the screen once it arrives (any call where the
             // peer has the camera on, including audio calls upgraded mid-call).
-            if let remote = webrtc.remoteVideoTrack {
+            if showingRemoteVideo, let remote = webrtc.remoteVideoTrack {
                 RTCVideoView(track: remote)
                     .ignoresSafeArea()
                     .transition(.opacity)

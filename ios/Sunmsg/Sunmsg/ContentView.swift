@@ -279,6 +279,7 @@ final class SessionStore: ObservableObject {
                 isOutgoing: true
             )
             state.isCameraOff = (callType != "video")  // audio calls start camera-off
+            state.remoteVideoEnabled = (callType == "video")
             activeCall = state
             incomingCall = nil
             // Prepare WebRTC as initiator. Offer is sent when remote accepts.
@@ -497,6 +498,7 @@ final class SessionStore: ObservableObject {
         state.isActive = true
         state.startedAt = Date()
         state.isCameraOff = (incoming.callType != "video")  // audio calls start camera-off
+        state.remoteVideoEnabled = (incoming.callType == "video")
         activeCall = state
         // Prepare WebRTC as callee. Will create answer when offer arrives.
         WebRTCService.shared.startCall(callId: callId, callType: incoming.callType, isInitiator: false)
