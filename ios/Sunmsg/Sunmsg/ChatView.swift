@@ -2323,6 +2323,10 @@ struct ChatView: View {
     // MARK: - Send media message
 
     private func handleSelectedPhoto(_ item: PhotosPickerItem) async {
+        guard !isUploadingMedia, canSendSecureMessage else {
+            selectedPhotoItem = nil
+            return
+        }
         isUploadingMedia = true
         sendError = nil
         selectedPhotoItem = nil
