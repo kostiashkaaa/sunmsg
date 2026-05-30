@@ -3910,6 +3910,7 @@ struct AppearanceSettingsView: View {
     @AppStorage(SettingsClientPreferences.bubbleInTextKey) private var bubbleInText = "#1f1b14"
     @AppStorage(SettingsClientPreferences.bubbleOpacityKey) private var bubbleOpacity = 1.0
     @AppStorage(SettingsClientPreferences.messageScaleKey) private var messageScale = 1.0
+    @ScaledMetric(relativeTo: .body) private var previewMessageBaseSize: CGFloat = 17
     @EnvironmentObject var session: SessionStore
     @State private var clientPreferences: [String: Any] = [:]
     @State private var selectedBackgroundItem: PhotosPickerItem?
@@ -4139,8 +4140,7 @@ struct AppearanceSettingsView: View {
             HStack {
                 Spacer()
                 Text("Привет! Как дела?")
-                    .font(.body)
-                    .scaleEffect(CGFloat(messageScale), anchor: .trailing)
+                    .font(.system(size: previewMessageBaseSize * CGFloat(messageScale)))
                     .foregroundStyle(Color(hex: bubbleOutText))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -4148,8 +4148,7 @@ struct AppearanceSettingsView: View {
             }
             HStack {
                 Text("Всё отлично, спасибо!")
-                    .font(.body)
-                    .scaleEffect(CGFloat(messageScale), anchor: .leading)
+                    .font(.system(size: previewMessageBaseSize * CGFloat(messageScale)))
                     .foregroundStyle(Color(hex: bubbleInText))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
