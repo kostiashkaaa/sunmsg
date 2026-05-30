@@ -2504,6 +2504,7 @@ struct DataMemorySettingsView: View {
     @State private var error: String?
     @State private var policySaveTask: Task<Void, Never>?
     @State private var storageUsageToken: UUID?
+    @State private var showClearAllConfirm = false
 
     private struct DataMemorySnapshot: Equatable {
         let autoDownloadMedia: Bool
@@ -2559,7 +2560,7 @@ struct DataMemorySettingsView: View {
                     .disabled(isWorking)
                 Button("Очистить файловый кэш") { Task { await clearURLCache() } }
                     .disabled(isWorking)
-                Button(role: .destructive) { Task { await clearAllCaches() } } label: {
+                Button(role: .destructive) { showClearAllConfirm = true } label: {
                     Text("Очистить всё")
                 }
                 .disabled(isWorking)
@@ -2595,6 +2596,14 @@ struct DataMemorySettingsView: View {
             await refreshStorageUsage()
         }
         .onDisappear { flushPendingPolicySave() }
+        .confirmationDialog("Очистить весь кэш?", isPresented: $showClearAllConfirm, titleVisibility: .visible) {
+            Button("Очистить всё", role: .destructive) {
+                Task { await clearAllCaches() }
+            }
+            Button("Отмена", role: .cancel) {}
+        } message: {
+            Text("Локальные сообщения и файловый кэш будут удалены с этого устройства.")
+        }
     }
 
     private var cacheLimitLabel: String {
