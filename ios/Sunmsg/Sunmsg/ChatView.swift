@@ -2774,7 +2774,6 @@ struct MessageBubbleView: View {
             reactionGrid(onBubble: true)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity, alignment: isFromMe ? .trailing : .leading)
     }
 
     /// Reaction chips for media/call bubbles live inside the same message block.
