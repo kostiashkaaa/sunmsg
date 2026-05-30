@@ -102,13 +102,13 @@ struct ChatComposerBar: View {
     }
 
     private var editingBanner: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Metrics.bannerContentSpacing) {
             Rectangle()
                 .fill(Color.smAccent)
-                .frame(width: 3, height: 30)
+                .frame(width: Metrics.bannerAccentWidth, height: Metrics.bannerAccentHeight)
                 .clipShape(Capsule())
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: Metrics.bannerTextSpacing) {
                 Text("Изменение сообщения")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smAccent2)
@@ -118,14 +118,14 @@ struct ChatComposerBar: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: Metrics.bannerTrailingSpacing)
 
             Button(action: onCancelEdit) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: Metrics.bannerCloseIconSize, weight: .semibold))
                     .foregroundStyle(Color.smMuted)
-                    .frame(width: 28, height: 28)
-                    .background(Color.smText.opacity(0.06), in: Circle())
+                    .frame(width: Metrics.bannerCloseButtonSize, height: Metrics.bannerCloseButtonSize)
+                    .background(Color.smText.opacity(Metrics.bannerCloseBackgroundOpacity), in: Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.94))
         }
@@ -135,13 +135,13 @@ struct ChatComposerBar: View {
     }
 
     private func replyBanner(_ preview: ComposerReplyPreview) -> some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Metrics.bannerContentSpacing) {
             Rectangle()
                 .fill(Color.smAccent)
-                .frame(width: 3, height: 30)
+                .frame(width: Metrics.bannerAccentWidth, height: Metrics.bannerAccentHeight)
                 .clipShape(Capsule())
 
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: Metrics.bannerTextSpacing) {
                 Text(preview.senderName)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Color.smAccent2)
@@ -152,14 +152,14 @@ struct ChatComposerBar: View {
                     .lineLimit(1)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: Metrics.bannerTrailingSpacing)
 
             Button(action: onCancelReply) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: Metrics.bannerCloseIconSize, weight: .semibold))
                     .foregroundStyle(Color.smMuted)
-                    .frame(width: 28, height: 28)
-                    .background(Color.smText.opacity(0.06), in: Circle())
+                    .frame(width: Metrics.bannerCloseButtonSize, height: Metrics.bannerCloseButtonSize)
+                    .background(Color.smText.opacity(Metrics.bannerCloseBackgroundOpacity), in: Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.94))
         }

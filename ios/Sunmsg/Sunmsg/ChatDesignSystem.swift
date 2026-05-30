@@ -174,6 +174,14 @@ enum ChatDesignMetrics {
         static let inputTrailingPadding: CGFloat = 4
         static let inputVerticalPadding: CGFloat = 5
         static let bannerTopPadding: CGFloat = 7
+        static let bannerContentSpacing: CGFloat = 10
+        static let bannerTextSpacing: CGFloat = 1
+        static let bannerAccentWidth: CGFloat = 3
+        static let bannerAccentHeight: CGFloat = 30
+        static let bannerTrailingSpacing: CGFloat = 8
+        static let bannerCloseButtonSize: CGFloat = 28
+        static let bannerCloseIconSize: CGFloat = 12
+        static let bannerCloseBackgroundOpacity: Double = 0.06
         static var inputColumnHorizontalInset: CGFloat {
             horizontalPadding + sideButtonSize + rowSpacing
         }
