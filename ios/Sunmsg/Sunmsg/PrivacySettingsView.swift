@@ -376,11 +376,15 @@ struct TotpSettingsView: View {
         .task { await loadStatus() }
         .task(id: status?.totpUri ?? "") {
             let uri = status?.totpUri ?? ""
-            setupQRImage = uri.isEmpty
-                ? nil
-                : await Task.detached(priority: .userInitiated) {
-                    generateQRCodeImage(from: uri)
-                }.value
+            guard !uri.isEmpty else {
+                setupQRImage = nil
+                return
+            }
+            let image = await Task.detached(priority: .userInitiated) {
+                generateQRCodeImage(from: uri)
+            }.value
+            guard !Task.isCancelled, status?.totpUri == uri else { return }
+            setupQRImage = image
         }
         .confirmationDialog(pendingAction?.title ?? "Подтвердите действие", isPresented: pendingActionBinding, titleVisibility: .visible) {
             if let pendingAction {
