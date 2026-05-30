@@ -920,6 +920,7 @@ struct BlockedUsersView: View {
         let loadToken = UUID()
         blockedLoadToken = loadToken
         isLoading = true
+        error = nil
         do {
             let users = try await session.api.getBlockedUsers()
             guard !Task.isCancelled, blockedLoadToken == loadToken else { return }
@@ -936,6 +937,7 @@ struct BlockedUsersView: View {
     private func unblock(_ user: BlockedUser) {
         guard !unblocking.contains(user.id) else { return }
         blockedLoadToken = nil
+        error = nil
         unblocking.insert(user.id)
         Task {
             do {
