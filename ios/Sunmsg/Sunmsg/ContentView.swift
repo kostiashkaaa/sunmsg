@@ -3405,6 +3405,15 @@ struct IntegrationsSettingsView: View {
     @State private var isSaving = false
     @State private var error: String?
 
+    private struct SpotifySettingsSnapshot: Equatable {
+        let privacy: String
+        let hideExplicit: Bool
+    }
+
+    private var spotifySettingsSnapshot: SpotifySettingsSnapshot {
+        SpotifySettingsSnapshot(privacy: privacy, hideExplicit: hideExplicit)
+    }
+
     var body: some View {
         Form {
             Section {
@@ -3461,9 +3470,11 @@ struct IntegrationsSettingsView: View {
     }
 
     private func load() async {
+        let snapshot = spotifySettingsSnapshot
         do {
             let response = try await session.api.getSpotifyStatus()
             status = response
+            guard spotifySettingsSnapshot == snapshot else { return }
             privacy = response.spotifyPrivacy
             hideExplicit = response.hideExplicit
         } catch { self.error = error.localizedDescription }
