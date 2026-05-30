@@ -1050,10 +1050,16 @@ struct ChatView: View {
     // MARK: - 15-second fallback sync
 
     private func slowPollLoop() async {
-        while !Task.isCancelled {
-            try? await Task.sleep(nanoseconds: 15_000_000_000)
-            guard !Task.isCancelled else { return }
-            await session.recoverChatSync(chatId: contact.chatId)
+        do {
+            while !Task.isCancelled {
+                try await Task.sleep(nanoseconds: 15_000_000_000)
+                try Task.checkCancellation()
+                await session.recoverChatSync(chatId: contact.chatId)
+            }
+        } catch is CancellationError {
+            return
+        } catch {
+            return
         }
     }
 
