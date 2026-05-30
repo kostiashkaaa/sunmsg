@@ -435,6 +435,7 @@ struct NativeLoginView: View {
                     .padding(.horizontal, 28)
                     .onChange(of: totpCode) { _, val in
                         let filtered = val.filter { $0.isNumber }.prefix(6)
+                        if !filtered.isEmpty, totpError != nil { totpError = nil }
                         if String(filtered) != val { totpCode = String(filtered) }
                         if filtered.count == 6 { handleTOTP() }
                     }
