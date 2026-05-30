@@ -2922,7 +2922,7 @@ struct MessageBubbleView: View {
             case "video":
                 VideoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
             case "audio":
-                AudioBubbleView(url: sunfile.fullURL, name: sunfile.name, isFromMe: isFromMe, isTail: isTail)
+                AudioBubbleView(url: sunfile.fullURL, name: sunfile.name, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
             case "file":
                 FileBubbleView(
                     url: sunfile.fullURL,
@@ -3542,12 +3542,21 @@ struct AudioBubbleView: View {
     let name: String
     let isFromMe: Bool
     let isTail: Bool
+    let maxWidth: CGFloat
     @State private var player = AudioPlayerController()
     /// Effective playback URL — may be a local temp file if the source is
     /// a web-encrypted media file (sun_media_e2ee fragment).
     @State private var effectiveURL: URL?
     @State private var decryptedTempURL: URL?
     @State private var isResolving = false
+
+    private var bubbleMaxWidth: CGFloat {
+        max(0, maxWidth)
+    }
+
+    private var bubbleMinWidth: CGFloat {
+        min(144, bubbleMaxWidth)
+    }
 
     var body: some View {
         HStack(spacing: 10) {
@@ -3588,6 +3597,7 @@ struct AudioBubbleView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
+        .frame(minWidth: bubbleMinWidth, maxWidth: bubbleMaxWidth, alignment: .leading)
         .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
         .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
         .overlay(
