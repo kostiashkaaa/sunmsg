@@ -435,15 +435,16 @@ final class SessionStore: ObservableObject {
 
     // MARK: - Call actions
 
-    func initiateCall(chatId: String, callType: String) {
+    @discardableResult
+    func initiateCall(chatId: String, callType: String) -> Bool {
         let chatId = normalizedChatId(chatId)
-        guard !chatId.isEmpty else { return }
-        guard activeCall == nil, incomingCall == nil else { return }
+        guard !chatId.isEmpty else { return false }
+        guard activeCall == nil, incomingCall == nil else { return false }
         guard pendingCallRequestsById.isEmpty,
-              !pendingCallRequestChatIds.contains(chatId) else { return }
+              !pendingCallRequestChatIds.contains(chatId) else { return false }
         guard SocketClient.shared.state == .connected else {
             showCallError("Нет соединения с сервером. Проверьте интернет и попробуйте переподключиться.")
-            return
+            return false
         }
         let requestId = UUID().uuidString
         pendingCallRequestsById[requestId] = chatId
@@ -465,6 +466,7 @@ final class SessionStore: ObservableObject {
             "request_id": requestId,
             "csrf_token": api.csrfToken,
         ])
+        return true
     }
 
     private func finishPendingCallRequest(requestId: String?) {

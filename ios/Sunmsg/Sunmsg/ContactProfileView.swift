@@ -189,12 +189,14 @@ struct ContactProfileView: View {
         HStack(spacing: 8) {
             profileActionButton(icon: "message.fill", label: "Сообщ.", action: { dismiss() })
             profileActionButton(icon: "phone.fill", label: "Звонок", action: {
-                session.initiateCall(chatId: contact.chatId, callType: "audio")
-                dismiss()
+                if session.initiateCall(chatId: contact.chatId, callType: "audio") {
+                    dismiss()
+                }
             })
             profileActionButton(icon: "video.fill", label: "Видео", action: {
-                session.initiateCall(chatId: contact.chatId, callType: "video")
-                dismiss()
+                if session.initiateCall(chatId: contact.chatId, callType: "video") {
+                    dismiss()
+                }
             })
             profileActionButton(icon: isMuted ? "bell.fill" : "bell.slash.fill", label: isMuted ? "Вкл. звук" : "Без звука", action: {
                 session.toggleChatMuted(chatId: contact.chatId)
