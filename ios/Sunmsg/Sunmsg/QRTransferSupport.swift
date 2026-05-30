@@ -339,6 +339,7 @@ struct QRLoginPanel: View {
     @State private var errorText: String?
     @State private var pollTask: Task<Void, Never>?
     @State private var pollSessionId: String?
+    @State private var sessionRequestToken: UUID?
     @State private var isPreparing = false
     @State private var isWaiting = false
     @State private var isCompleting = false
@@ -443,6 +444,8 @@ struct QRLoginPanel: View {
 
     @MainActor
     private func startNewSession() async {
+        let requestToken = UUID()
+        sessionRequestToken = requestToken
         cancelPolling()
         qrImage = nil
         errorText = nil
@@ -463,14 +466,17 @@ struct QRLoginPanel: View {
                 throw QRTransferCryptoError.invalidCiphertext
             }
             let qrText = response.qrText
-            qrImage = await Task.detached(priority: .userInitiated) {
+            let image = await Task.detached(priority: .userInitiated) {
                 generateQRCodeImage(from: qrText)
             }.value
+            guard !Task.isCancelled, sessionRequestToken == requestToken else { return }
+            qrImage = image
             statusText = "Откройте SUN на другом устройстве и отсканируйте этот код."
             isPreparing = false
             isWaiting = true
             startPolling(sessionId: response.sessionId, receiverPrivateKey: receiverPrivateKey)
         } catch {
+            guard sessionRequestToken == requestToken else { return }
             isPreparing = false
             isWaiting = false
             errorText = error.localizedDescription
