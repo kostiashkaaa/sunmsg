@@ -2737,9 +2737,9 @@ struct MessageBubbleView: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(isFromMe ? bubbleTextColor.opacity(0.76) : Color.smMuted)
                 .lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading)
+                .truncationMode(.tail)
+                .layoutPriority(1)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
         .background(isFromMe ? bubbleTextColor.opacity(0.12) : Color.smSurface.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
