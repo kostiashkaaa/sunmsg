@@ -24,6 +24,8 @@ struct PrivacySettingsView: View {
     @State private var blockedCount = 0
     @State private var showMnemonicInfo = false
     @State private var hasPrivateKeyLoaded = false
+    @State private var queuedSettingsPayload: [String: Any]?
+    @State private var queuedSettingsReconnect = false
 
     private var hasKey: Bool { hasPrivateKeyLoaded }
 
@@ -207,7 +209,11 @@ struct PrivacySettingsView: View {
     }
 
     private func saveSettings(_ payload: [String: Any], reconnect: Bool = false) {
-        guard !isSaving else { return }
+        guard !isSaving else {
+            queuedSettingsPayload = (queuedSettingsPayload ?? [:]).merging(payload) { _, new in new }
+            queuedSettingsReconnect = queuedSettingsReconnect || reconnect
+            return
+        }
         isSaving = true
         Task {
             do {
@@ -215,7 +221,16 @@ struct PrivacySettingsView: View {
                 if reconnect { await session.reconnectRealtime() }
             } catch { self.error = error.localizedDescription }
             isSaving = false
+            flushQueuedSettings()
         }
+    }
+
+    private func flushQueuedSettings() {
+        guard let payload = queuedSettingsPayload else { return }
+        let reconnect = queuedSettingsReconnect
+        queuedSettingsPayload = nil
+        queuedSettingsReconnect = false
+        saveSettings(payload, reconnect: reconnect)
     }
 }
 
