@@ -102,6 +102,7 @@ struct ContactProfileView: View {
                             .font(.system(size: 16, weight: .medium))
                             .foregroundStyle(Color.smAccent)
                     }
+                    .disabled(isBlocking)
                 }
             }
         }
@@ -508,6 +509,7 @@ struct ContactProfileView: View {
                 .padding(.vertical, 12)
             }
             .buttonStyle(.plain)
+            .disabled(isBlocking)
         }
         .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 14))
         .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color.smBorder, lineWidth: 0.5))
