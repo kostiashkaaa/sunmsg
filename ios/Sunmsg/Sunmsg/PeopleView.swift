@@ -742,7 +742,7 @@ struct GroupCreateView: View {
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(Color.smText)
                         .lineLimit(1)
-                    Text(candidate.username.isEmpty ? "@user" : "@\(candidate.username)")
+                    Text(candidate.username.isEmpty ? "пользователь" : "@\(candidate.username)")
                         .font(.caption)
                         .foregroundStyle(Color.smMuted)
                         .lineLimit(1)
