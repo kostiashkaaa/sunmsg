@@ -1580,7 +1580,22 @@ struct ProfileSettingsView: View {
     @State private var saveError: String?
     @State private var activeSheet: ProfileSettingsSheet?
 
+    private struct ProfileFieldsSnapshot: Equatable {
+        let displayName: String
+        let username: String
+        let statusText: String
+        let bio: String
+    }
+
     private var user: BootstrapUser? { session.bootstrap?.user }
+    private var profileFieldsSnapshot: ProfileFieldsSnapshot {
+        ProfileFieldsSnapshot(
+            displayName: displayName,
+            username: username,
+            statusText: statusText,
+            bio: bio
+        )
+    }
     private var trimmedDisplayName: String { displayName.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedStatusText: String { statusText.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var trimmedBio: String { bio.trimmingCharacters(in: .whitespacesAndNewlines) }
@@ -1691,6 +1706,7 @@ struct ProfileSettingsView: View {
                 } header: {
                     Text("Профиль")
                 }
+                .disabled(isSaving)
 
                 Section {
                     Button { activeSheet = .userQR } label: {
@@ -1737,15 +1753,18 @@ struct ProfileSettingsView: View {
         }
     }
 
-    private func hydrateFieldsFromUser() {
+    private func hydrateFieldsFromUser(ifUnchangedFrom snapshot: ProfileFieldsSnapshot) {
+        guard profileFieldsSnapshot == snapshot else { return }
         displayName = user?.displayName ?? ""
         username = user?.username ?? ""
     }
 
     private func loadProfileSettings() async {
+        let snapshot = profileFieldsSnapshot
         do {
             let settings = try await session.api.getSettings()
             currentSettings = settings
+            guard profileFieldsSnapshot == snapshot else { return }
             displayName = settings.displayName
             username = settings.username
             statusText = settings.statusText
@@ -1753,7 +1772,7 @@ struct ProfileSettingsView: View {
         } catch APIError.unauthorized {
             session.route = .login
         } catch {
-            hydrateFieldsFromUser()
+            hydrateFieldsFromUser(ifUnchangedFrom: snapshot)
             saveError = error.localizedDescription
         }
     }
