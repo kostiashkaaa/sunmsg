@@ -79,6 +79,8 @@ struct ChatListView: View {
                     emptySearch
                 } else if session.contacts.isEmpty {
                     emptyContacts
+                } else if contacts.isEmpty {
+                    emptyFilteredContacts
                 } else {
                     contactList(contacts)
                 }
@@ -572,6 +574,26 @@ struct ChatListView: View {
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(Color.smMuted)
             Text("Новые диалоги и приглашения появятся здесь.")
+                .font(.caption)
+                .foregroundStyle(Color.smFaint)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var emptyFilteredContacts: some View {
+        let isArchive = activeFilter == "archive"
+        return VStack(spacing: 12) {
+            Spacer()
+            Image(systemName: isArchive ? "archivebox" : "person.2")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.smFaint)
+            Text(isArchive ? "Архив пуст" : "Нет групп")
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(Color.smMuted)
+            Text(isArchive ? "Скрытые диалоги появятся здесь." : "Групповые чаты появятся здесь после создания или приглашения.")
                 .font(.caption)
                 .foregroundStyle(Color.smFaint)
                 .multilineTextAlignment(.center)
