@@ -2807,7 +2807,12 @@ struct CallSettingsView: View {
     }
 
     private func load() async {
-        do { callPrivacy = try await session.api.getSettings().callPrivacy }
+        let snapshot = callPrivacy
+        do {
+            let value = try await session.api.getSettings().callPrivacy
+            guard callPrivacy == snapshot else { return }
+            callPrivacy = value
+        }
         catch { self.error = error.localizedDescription }
     }
 
