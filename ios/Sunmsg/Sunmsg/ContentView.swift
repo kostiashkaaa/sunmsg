@@ -3361,6 +3361,7 @@ struct SupportSettingsView: View {
     }
 
     private func submit() async {
+        guard !isSubmitting else { return }
         isSubmitting = true
         error = nil
         submittedId = nil
