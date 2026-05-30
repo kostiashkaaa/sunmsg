@@ -728,6 +728,8 @@ struct GroupCreateView: View {
                     Text(candidate.username.isEmpty ? "@user" : "@\(candidate.username)")
                         .font(.caption)
                         .foregroundStyle(Color.smMuted)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                 }
                 .layoutPriority(1)
                 Spacer()
