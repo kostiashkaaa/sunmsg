@@ -2302,11 +2302,15 @@ struct DataMemorySettingsView: View {
                     Text("Локальный кэш")
                 }
                 Button("Обновить размер") { Task { await refreshStorageUsage() } }
+                    .disabled(isWorking)
                 Button("Очистить кэш сообщений") { Task { await clearChatCache() } }
+                    .disabled(isWorking)
                 Button("Очистить файловый кэш") { Task { await clearURLCache() } }
+                    .disabled(isWorking)
                 Button(role: .destructive) { Task { await clearAllCaches() } } label: {
                     Text("Очистить всё")
                 }
+                .disabled(isWorking)
             } header: {
                 Text("Хранилище")
             }
