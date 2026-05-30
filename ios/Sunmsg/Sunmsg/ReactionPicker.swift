@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ReactionPicker: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private typealias Metrics = ChatDesignMetrics.Reaction
 
     let primaryReactions: [String]
     let additionalReactions: [String]
@@ -29,31 +30,36 @@ struct ReactionPicker: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Metrics.spacing) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 4) {
+                HStack(spacing: Metrics.spacing) {
                     ForEach(visibleReactions, id: \.self) { emoji in
                         reactionButton(emoji)
                     }
                 }
-                .padding(.leading, 8)
+                .padding(.leading, Metrics.pickerHorizontalPadding)
             }
 
             Button(action: toggleAdditionalReactions) {
                 Image(systemName: showsAdditionalReactions ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                    .font(.system(size: 24, weight: .semibold))
+                    .font(.system(size: Metrics.toggleIconSize, weight: .semibold))
                     .foregroundStyle(Color.smMuted)
-                    .frame(width: 40, height: 40)
+                    .frame(width: Metrics.toggleSize, height: Metrics.toggleSize)
                     .contentShape(Circle())
             }
             .buttonStyle(PressableStyle(scale: 0.9))
             .accessibilityLabel(showsAdditionalReactions ? "Скрыть дополнительные реакции" : "Показать дополнительные реакции")
-            .padding(.trailing, 8)
+            .padding(.trailing, Metrics.pickerHorizontalPadding)
         }
-        .frame(height: 54)
+        .frame(height: Metrics.pickerHeight)
         .background(Color.smSurface, in: Capsule())
         .overlay(Capsule().stroke(Color.smBorder, lineWidth: 0.6))
-        .shadow(color: Color.black.opacity(0.18), radius: 16, x: 0, y: 8)
+        .shadow(
+            color: Color.black.opacity(Metrics.shadowOpacity),
+            radius: Metrics.shadowRadius,
+            x: 0,
+            y: Metrics.shadowY
+        )
     }
 
     private func reactionButton(_ emoji: String) -> some View {
@@ -64,9 +70,9 @@ struct ReactionPicker: View {
             onSelect(emoji)
         }) {
             Text(emoji)
-                .font(.system(size: 27))
-                .frame(width: 40, height: 40)
-                .background(isActive ? Color.smAccent.opacity(0.22) : Color.clear, in: Circle())
+                .font(.system(size: Metrics.emojiSize))
+                .frame(width: Metrics.buttonSize, height: Metrics.buttonSize)
+                .background(isActive ? Color.smAccent.opacity(Metrics.activeOpacity) : Color.clear, in: Circle())
                 .contentShape(Circle())
         }
         .buttonStyle(PressableStyle(scale: 0.86))

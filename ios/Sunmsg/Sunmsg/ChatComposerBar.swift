@@ -35,16 +35,7 @@ struct ChatComposerBar: View {
 
     @State private var recordingPulse = false
 
-    private enum Metrics {
-        static let sideButtonSize: CGFloat = 38
-        static let sendButtonSize: CGFloat = 34
-        static let inputMinHeight: CGFloat = 38
-        static let inputRadius: CGFloat = 19
-        static let rowSpacing: CGFloat = 6
-        static let horizontalPadding: CGFloat = 10
-        static let iconSize: CGFloat = 21
-        static let innerButtonSize: CGFloat = 32
-    }
+    private typealias Metrics = ChatDesignMetrics.Composer
 
     private var trimmedText: String {
         composerText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -73,8 +64,8 @@ struct ChatComposerBar: View {
                 }
             }
             .padding(.horizontal, Metrics.horizontalPadding)
-            .padding(.top, 7)
-            .padding(.bottom, 7)
+            .padding(.top, Metrics.topPadding)
+            .padding(.bottom, Metrics.bottomPadding)
         }
         .background(.regularMaterial)
         .background(Color.smBg.opacity(0.94).ignoresSafeArea(edges: .bottom))
@@ -200,7 +191,7 @@ struct ChatComposerBar: View {
             ZStack(alignment: .leading) {
                 if composerText.isEmpty && !isUploadingMedia {
                     Text(placeholder)
-                        .font(.body.weight(.medium))
+                        .font(.body)
                         .foregroundStyle(Color.smFaint)
                         .lineLimit(1)
                         .minimumScaleFactor(0.82)
@@ -213,7 +204,7 @@ struct ChatComposerBar: View {
                 } else {
                     TextField("", text: $composerText, axis: .vertical)
                         .focused(composerFocused)
-                        .font(.body.weight(.medium))
+                        .font(.body)
                         .foregroundStyle(Color.smText)
                         .tint(Color.smAccent)
                         .lineLimit(1...5)
@@ -225,12 +216,12 @@ struct ChatComposerBar: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 5)
+            .padding(.vertical, Metrics.inputVerticalPadding)
 
             trailingInputButton
         }
-        .padding(.leading, 14)
-        .padding(.trailing, 4)
+        .padding(.leading, Metrics.inputLeadingPadding)
+        .padding(.trailing, Metrics.inputTrailingPadding)
         .frame(minHeight: Metrics.inputMinHeight)
         .background(Color.smSurface.opacity(0.96), in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))
         .overlay(
@@ -272,7 +263,7 @@ struct ChatComposerBar: View {
 
             Spacer(minLength: 8)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Metrics.inputLeadingPadding)
         .frame(maxWidth: .infinity)
         .frame(minHeight: Metrics.inputMinHeight)
         .background(Color.smSurface.opacity(0.96), in: RoundedRectangle(cornerRadius: Metrics.inputRadius, style: .continuous))

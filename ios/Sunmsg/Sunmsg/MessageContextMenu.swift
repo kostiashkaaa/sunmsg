@@ -30,6 +30,7 @@ struct MessageContextMenuAction: Identifiable {
 
 struct MessageContextMenu<Preview: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    private typealias Metrics = ChatDesignMetrics.ContextMenu
 
     let targetRect: CGRect
     let containerSize: CGSize
@@ -43,10 +44,10 @@ struct MessageContextMenu<Preview: View>: View {
     let onDismiss: () -> Void
     let preview: () -> Preview
 
-    private let gap: CGFloat = 10
-    private let reactionHeight: CGFloat = 54
-    private let rowHeight: CGFloat = 48
-    private let horizontalMargin: CGFloat = 12
+    private let gap: CGFloat = Metrics.gap
+    private let reactionHeight: CGFloat = ChatDesignMetrics.Reaction.pickerHeight
+    private let rowHeight: CGFloat = Metrics.rowHeight
+    private let horizontalMargin: CGFloat = Metrics.horizontalMargin
 
     init(
         targetRect: CGRect,
@@ -79,16 +80,20 @@ struct MessageContextMenu<Preview: View>: View {
 
         ZStack {
             Rectangle()
-                .fill(.ultraThinMaterial)
-                .opacity(0.96)
+                .fill(.regularMaterial)
+                .opacity(0.90)
                 .ignoresSafeArea()
-                .overlay(Color.black.opacity(0.20).ignoresSafeArea())
+                .overlay(Color.black.opacity(Metrics.backdropOpacity).ignoresSafeArea())
                 .onTapGesture(perform: onDismiss)
 
             preview()
                 .frame(width: targetRect.width)
-                .scaleEffect(reduceMotion ? 1 : 1.035)
-                .shadow(color: Color.black.opacity(0.22), radius: 18, x: 0, y: 8)
+                .shadow(
+                    color: Color.black.opacity(Metrics.previewShadowOpacity),
+                    radius: Metrics.shadowRadius,
+                    x: 0,
+                    y: Metrics.shadowY
+                )
                 .position(x: targetRect.midX, y: layout.previewCenterY)
                 .transition(.opacity.combined(with: .scale(scale: 0.98)))
 
@@ -119,19 +124,24 @@ struct MessageContextMenu<Preview: View>: View {
                         Rectangle()
                             .fill(Color.smBorderSoft)
                             .frame(height: 0.5)
-                            .padding(.leading, 16)
+                            .padding(.leading, Metrics.dividerLeadingPadding)
                     }
                 }
             }
         }
         .scrollDisabled(CGFloat(actions.count) * rowHeight <= maxHeight)
-        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .background(Color.smSurface, in: RoundedRectangle(cornerRadius: Metrics.menuCornerRadius, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: 15, style: .continuous)
+            RoundedRectangle(cornerRadius: Metrics.menuCornerRadius, style: .continuous)
                 .stroke(Color.smBorder, lineWidth: 0.6)
         )
-        .shadow(color: Color.black.opacity(0.20), radius: 18, x: 0, y: 9)
-        .clipShape(RoundedRectangle(cornerRadius: 15, style: .continuous))
+        .shadow(
+            color: Color.black.opacity(Metrics.menuShadowOpacity),
+            radius: Metrics.shadowRadius,
+            x: 0,
+            y: Metrics.shadowY
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Metrics.menuCornerRadius, style: .continuous))
     }
 
     private func actionRow(_ action: MessageContextMenuAction) -> some View {
@@ -161,12 +171,12 @@ struct MessageContextMenu<Preview: View>: View {
                 Image(systemName: action.systemImage)
                     .font(.system(size: 18, weight: .medium))
                     .foregroundStyle(foreground)
-                    .frame(width: 24)
+                    .frame(width: Metrics.rowIconWidth)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Metrics.rowHorizontalPadding)
             .frame(minHeight: rowHeight)
             .contentShape(Rectangle())
-            .opacity(action.isEnabled ? 1 : 0.42)
+            .opacity(action.isEnabled ? 1 : Metrics.maxDisabledOpacity)
         }
         .buttonStyle(MenuRowStyle())
         .disabled(!action.isEnabled)
@@ -184,12 +194,19 @@ struct MessageContextMenu<Preview: View>: View {
     }
 
     private func makeLayout() -> Layout {
-        let safeTop = safeAreaInsets.top + 10
-        let safeBottom = containerSize.height - safeAreaInsets.bottom - 10
+        let safeTop = safeAreaInsets.top + Metrics.safeVerticalPadding
+        let safeBottom = containerSize.height - safeAreaInsets.bottom - Metrics.safeVerticalPadding
         let availableHeight = max(1, safeBottom - safeTop)
         let availableWidth = max(1, containerSize.width - horizontalMargin * 2)
-        let reactionWidth = min(availableWidth, max(232, CGFloat(primaryReactions.count + 1) * 44 + 18))
-        let menuWidth = min(availableWidth, 300)
+        let reactionWidth = min(
+            availableWidth,
+            max(
+                Metrics.minReactionWidth,
+                CGFloat(primaryReactions.count + 1) * ChatDesignMetrics.Reaction.buttonSize
+                    + ChatDesignMetrics.Reaction.pickerHorizontalPadding * 2
+            )
+        )
+        let menuWidth = min(availableWidth, Metrics.menuWidth)
         let naturalMenuHeight = CGFloat(actions.count) * rowHeight
         let maxMenuHeight = max(96, availableHeight - targetRect.height - reactionHeight - gap * 4)
         let menuHeight = min(naturalMenuHeight, maxMenuHeight)

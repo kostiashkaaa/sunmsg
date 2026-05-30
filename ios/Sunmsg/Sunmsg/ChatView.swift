@@ -63,6 +63,7 @@ struct ChatView: View {
     let contact: Contact
     @EnvironmentObject var session: SessionStore
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(SettingsClientPreferences.chatAppearanceModeKey) private var chatAppearanceMode = "default"
@@ -361,7 +362,7 @@ struct ChatView: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .blur(radius: CGFloat(chatBackgroundBlur))
                         .opacity(chatBackgroundImageOpacity)
-                        .overlay(Color.black.opacity(chatBackgroundDarken))
+                        .overlay(Color.black.opacity(effectiveChatBackgroundDarken))
                 } else {
                     Image(uiImage: decodedChatBackgroundImage)
                         .resizable()
@@ -375,7 +376,7 @@ struct ChatView: View {
                         .clipped()
                         .blur(radius: CGFloat(chatBackgroundBlur))
                         .opacity(chatBackgroundImageOpacity)
-                        .overlay(Color.black.opacity(chatBackgroundDarken))
+                        .overlay(Color.black.opacity(effectiveChatBackgroundDarken))
                 }
             }
         } else if chatAppearanceMode == "color" || chatAppearanceMode == "preset" {
@@ -383,6 +384,12 @@ struct ChatView: View {
         } else {
             Color.smBg2
         }
+    }
+
+    private var effectiveChatBackgroundDarken: Double {
+        guard chatAppearanceMode == "custom" else { return chatBackgroundDarken }
+        let readabilityFloor = colorScheme == .dark ? 0.16 : 0.04
+        return max(chatBackgroundDarken, readabilityFloor)
     }
 
     private func refreshChatBackgroundImage(from dataURL: String) async {
@@ -2574,14 +2581,7 @@ struct MessageBubbleView: View {
     @AppStorage(SettingsClientPreferences.bubbleInTextKey) private var bubbleInTextHex = "#1f1b14"
     @AppStorage(SettingsClientPreferences.bubbleOpacityKey) private var bubbleOpacity = 1.0
 
-    private enum Metrics {
-        static let sideGutter: CGFloat = 42
-        static let textHorizontalPadding: CGFloat = 11
-        static let textVerticalPadding: CGFloat = 7
-        static let minTextBubbleWidth: CGFloat = 54
-        static let minReactedTextBubbleWidth: CGFloat = 98
-        static let contentSpacing: CGFloat = 5
-    }
+    private typealias Metrics = ChatDesignMetrics.Bubble
 
     init(
         message: ChatMessage,
@@ -2705,7 +2705,7 @@ struct MessageBubbleView: View {
                 }
             }
         }
-        .padding(.vertical, isTail ? 3 : 1.5)
+        .padding(.vertical, isTail ? Metrics.tailRowVerticalPadding : Metrics.rowVerticalPadding)
         .contentShape(Rectangle())
         .onTapGesture {
             if isSelectionMode && !isPreview {
@@ -2740,7 +2740,7 @@ struct MessageBubbleView: View {
                     .contentShape(Rectangle())
                     .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
             } else {
-                VStack(alignment: stackAlignment, spacing: 4) {
+                VStack(alignment: stackAlignment, spacing: Metrics.contentSpacing) {
                     if message.messageType == "call" {
                         callContent
                     } else {
@@ -2751,10 +2751,7 @@ struct MessageBubbleView: View {
                         reactionChips
                     }
 
-                    HStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        timeRow
-                    }
+                    outsideTimeRow
                 }
                 .contentShape(Rectangle())
                 .onLongPressGesture(minimumDuration: 0.3) { if !isPreview { onRequestMenu() } }
@@ -2798,7 +2795,7 @@ struct MessageBubbleView: View {
     // MARK: - Time / read-receipt row
 
     private var timeRow: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: Metrics.metaSpacing) {
             if message.isEdited {
                 Text("изменено")
                     .font(.caption2.weight(.medium))
@@ -2814,7 +2811,19 @@ struct MessageBubbleView: View {
                     .foregroundStyle(message.isRead ? Color.smAccent : Color.smFaint)
             }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Metrics.metaHorizontalPadding)
+    }
+
+    private var outsideTimeRow: some View {
+        HStack(spacing: 0) {
+            Spacer(minLength: 0)
+            timeRow
+                .padding(.vertical, 2)
+                .background(.thinMaterial, in: Capsule())
+                .background(Color.smSurface.opacity(0.62), in: Capsule())
+                .overlay(Capsule().stroke(Color.smBorderSoft.opacity(0.85), lineWidth: 0.5))
+        }
+        .frame(maxWidth: clampedMaxBubbleWidth, alignment: .trailing)
     }
 
     // MARK: - Text bubble (reactions + time live INSIDE the bubble)
@@ -2843,16 +2852,7 @@ struct MessageBubbleView: View {
             maxWidth: clampedMaxBubbleWidth,
             alignment: .leading
         )
-        .background(bubbleFill)
-        .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-        .overlay(
-            BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                .stroke(isFromMe ? Color.clear : Color.smBorderSoft, lineWidth: 0.5)
-        )
-        .shadow(
-            color: Color(hex: isFromMe ? "#000000" : "#281e0f").opacity(isFromMe ? 0.14 : 0.04),
-            radius: 1, x: 0, y: 1
-        )
+        .chatBubbleChrome(isFromMe: isFromMe, isTail: isTail, fill: bubbleFill)
     }
 
     @ViewBuilder
@@ -2905,14 +2905,17 @@ struct MessageBubbleView: View {
                 .truncationMode(.tail)
                 .layoutPriority(1)
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(isFromMe ? bubbleTextColor.opacity(0.12) : Color.smSurface.opacity(0.75), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .padding(.horizontal, Metrics.replyHorizontalPadding)
+        .padding(.vertical, Metrics.replyVerticalPadding)
+        .background(
+            isFromMe ? bubbleTextColor.opacity(0.12) : Color.smSurface.opacity(0.75),
+            in: RoundedRectangle(cornerRadius: Metrics.replyRadius, style: .continuous)
+        )
     }
 
     /// Time + edited + read tick, tinted for the bubble's own background.
     private var inlineTimeRow: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: Metrics.metaSpacing) {
             if message.isEdited {
                 Text("изменено")
                     .font(.caption2.weight(.medium))
@@ -2962,9 +2965,17 @@ struct MessageBubbleView: View {
 
     private func reactionGrid(onBubble: Bool) -> some View {
         LazyVGrid(
-            columns: [GridItem(.adaptive(minimum: 48, maximum: 84), spacing: 5)],
+            columns: [
+                GridItem(
+                    .adaptive(
+                        minimum: Metrics.reactionGridMinWidth,
+                        maximum: Metrics.reactionGridMaxWidth
+                    ),
+                    spacing: Metrics.reactionSpacing
+                )
+            ],
             alignment: stackAlignment,
-            spacing: 4
+            spacing: Metrics.reactionSpacing
         ) {
             ForEach(message.reactions) { r in
                 reactionPill(r, onBubble: onBubble)
@@ -2975,8 +2986,8 @@ struct MessageBubbleView: View {
     private func reactionPill(_ r: MessageReaction, onBubble: Bool) -> some View {
         // On the out-bubble (dark) background, use a lighter translucent fill.
         let bg: Color = onBubble && isFromMe
-            ? (r.reactedByMe ? Color.white.opacity(0.28) : Color.white.opacity(0.14))
-            : (r.reactedByMe ? Color.smAccent.opacity(0.18) : Color.smSurface)
+            ? (r.reactedByMe ? Color.white.opacity(0.24) : Color.white.opacity(0.12))
+            : (r.reactedByMe ? Color.smAccent.opacity(0.16) : Color.smSurface.opacity(0.92))
         let stroke: Color = onBubble && isFromMe
             ? Color.white.opacity(0.18)
             : (r.reactedByMe ? Color.smAccent.opacity(0.55) : Color.smBorderSoft)
@@ -2990,15 +3001,16 @@ struct MessageBubbleView: View {
         }) {
             HStack(spacing: 3) {
                 Text(r.emoji)
-                    .font(.body)
+                    .font(.system(size: 15))
                 if r.count > 1 {
                     Text("\(r.count)")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(countColor)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .frame(minHeight: Metrics.reactionMinHeight)
+            .padding(.horizontal, Metrics.reactionHorizontalPadding)
+            .padding(.vertical, Metrics.reactionVerticalPadding)
             .background(bg, in: Capsule())
             .overlay(Capsule().stroke(stroke, lineWidth: 0.5))
         }
@@ -3041,7 +3053,9 @@ struct MessageBubbleView: View {
                 durationSec: call.durationSec,
                 isFromMe: isFromMe,
                 isTail: isTail,
-                maxWidth: maxBubbleWidth
+                maxWidth: maxBubbleWidth,
+                bubbleFill: bubbleFill,
+                bubbleTextColor: bubbleTextColor
             )
         } else {
             textContent
@@ -3055,19 +3069,10 @@ struct MessageBubbleView: View {
             .font(.system(size: fallbackBodyBaseSize * CGFloat(messageScale)))
             .foregroundStyle(bubbleTextColor)
             .lineSpacing(1)
-            .padding(.horizontal, 12)
-            .padding(.top, 7)
-            .padding(.bottom, 8)
-            .background(bubbleFill)
-            .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-            .overlay(
-                BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                    .stroke(isFromMe ? Color.clear : Color.smBorderSoft, lineWidth: 0.5)
-            )
-            .shadow(
-                color: Color(hex: isFromMe ? "#000000" : "#281e0f").opacity(isFromMe ? 0.14 : 0.04),
-                radius: 1, x: 0, y: 1
-            )
+            .padding(.horizontal, Metrics.fallbackHorizontalPadding)
+            .padding(.top, Metrics.fallbackTopPadding)
+            .padding(.bottom, Metrics.fallbackBottomPadding)
+            .chatBubbleChrome(isFromMe: isFromMe, isTail: isTail, fill: bubbleFill)
     }
 
     // MARK: - Media bubble content
@@ -3081,7 +3086,15 @@ struct MessageBubbleView: View {
             case "video":
                 VideoBubbleView(url: sunfile.fullURL, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
             case "audio":
-                AudioBubbleView(url: sunfile.fullURL, name: sunfile.name, isFromMe: isFromMe, isTail: isTail, maxWidth: maxBubbleWidth)
+                AudioBubbleView(
+                    url: sunfile.fullURL,
+                    name: sunfile.name,
+                    isFromMe: isFromMe,
+                    isTail: isTail,
+                    maxWidth: maxBubbleWidth,
+                    bubbleFill: bubbleFill,
+                    bubbleTextColor: bubbleTextColor
+                )
             case "file":
                 FileBubbleView(
                     url: sunfile.fullURL,
@@ -3089,7 +3102,9 @@ struct MessageBubbleView: View {
                     size: sunfile.size,
                     isFromMe: isFromMe,
                     isTail: isTail,
-                    maxWidth: maxBubbleWidth
+                    maxWidth: maxBubbleWidth,
+                    bubbleFill: bubbleFill,
+                    bubbleTextColor: bubbleTextColor
                 )
             default:
                 textContent
@@ -3196,6 +3211,8 @@ struct CallBubbleView: View {
     let isFromMe: Bool
     let isTail: Bool
     let maxWidth: CGFloat
+    let bubbleFill: Color
+    let bubbleTextColor: Color
 
     private var iconName: String { callType == "video" ? "video.fill" : "phone.fill" }
 
@@ -3209,6 +3226,7 @@ struct CallBubbleView: View {
     }
 
     private var iconColor: Color { wasMissed ? Color.smDanger : Color.smOnline }
+    private var secondaryTextColor: Color { bubbleTextColor.opacity(0.68) }
 
     private var label: String {
         let isVideo = callType == "video"
@@ -3249,35 +3267,26 @@ struct CallBubbleView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smBubbleInText)
+                    .foregroundStyle(bubbleTextColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
                 if let dur = durationText {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.system(size: 9.5))
-                            .foregroundStyle((isFromMe ? Color.smBubbleOutText : Color.smBubbleInText).opacity(0.55))
+                            .foregroundStyle(secondaryTextColor)
                         Text(dur)
                             .font(.caption2.monospacedDigit().weight(.medium))
-                            .foregroundStyle((isFromMe ? Color.smBubbleOutText : Color.smBubbleInText).opacity(0.70))
+                            .foregroundStyle(secondaryTextColor)
                     }
                 }
             }
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
+        .padding(.horizontal, ChatDesignMetrics.Bubble.callHorizontalPadding)
+        .padding(.vertical, ChatDesignMetrics.Bubble.callVerticalPadding)
         .frame(minWidth: min(164, maxWidth), maxWidth: maxWidth, alignment: .leading)
-        .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
-        .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-        .overlay(
-            BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                .stroke(isFromMe ? Color.clear : Color.smBorderSoft, lineWidth: 0.5)
-        )
-        .shadow(
-            color: Color(hex: isFromMe ? "#000000" : "#281e0f").opacity(isFromMe ? 0.14 : 0.04),
-            radius: 1, x: 0, y: 1
-        )
+        .chatBubbleChrome(isFromMe: isFromMe, isTail: isTail, fill: bubbleFill)
     }
 }
 
@@ -3298,7 +3307,7 @@ struct PhotoBubbleView: View {
     @State private var fullscreenPhoto: FullscreenPhotoDraft?
 
     private var mediaWidth: CGFloat {
-        min(260, max(0, maxWidth))
+        min(ChatDesignMetrics.Bubble.mediaMaxWidth, max(0, maxWidth))
     }
 
     var body: some View {
@@ -3318,13 +3327,8 @@ struct PhotoBubbleView: View {
                     loadingPlaceholder
                 }
             }
-            .frame(width: mediaWidth, height: mediaWidth * 0.727)
-            .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-            .overlay(
-                BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                    .stroke(Color.smBorderSoft, lineWidth: 0.5)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 2, x: 0, y: 1)
+            .frame(width: mediaWidth, height: mediaWidth * ChatDesignMetrics.Bubble.mediaAspectRatio)
+            .chatMediaChrome(isFromMe: isFromMe, isTail: isTail)
         }
         .buttonStyle(.plain)
         .task(id: url) { await loadImage() }
@@ -3397,14 +3401,14 @@ struct PhotoBubbleView: View {
 
     private var loadingPlaceholder: some View {
         ZStack {
-            Color.smBorderSoft
+            Color.smSurface2.opacity(0.88)
             ProgressView().tint(Color.smMuted)
         }
     }
 
     private var failPlaceholder: some View {
         ZStack {
-            Color.smBorderSoft
+            Color.smSurface2.opacity(0.88)
             Image(systemName: "photo")
                 .font(.system(size: 32))
                 .foregroundStyle(Color.smFaint)
@@ -3529,7 +3533,7 @@ struct VideoBubbleView: View {
     @State private var loadFailed = false
 
     private var mediaWidth: CGFloat {
-        min(260, max(0, maxWidth))
+        min(ChatDesignMetrics.Bubble.mediaMaxWidth, max(0, maxWidth))
     }
 
     var body: some View {
@@ -3544,7 +3548,7 @@ struct VideoBubbleView: View {
                         .resizable()
                         .scaledToFill()
                 } else {
-                    Color.smBorderSoft
+                    Color.smSurface2.opacity(0.88)
                     Image(systemName: loadFailed ? "exclamationmark.triangle" : "video.fill")
                         .font(.system(size: 32))
                         .foregroundStyle(Color.smMuted)
@@ -3561,12 +3565,8 @@ struct VideoBubbleView: View {
                         )
                 }
             }
-            .frame(width: mediaWidth, height: mediaWidth * 0.727)
-            .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-            .overlay(
-                BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                    .stroke(Color.smBorderSoft, lineWidth: 0.5)
-            )
+            .frame(width: mediaWidth, height: mediaWidth * ChatDesignMetrics.Bubble.mediaAspectRatio)
+            .chatMediaChrome(isFromMe: isFromMe, isTail: isTail)
         }
         .buttonStyle(.plain)
         .task(id: url) { await resolveAndLoadThumbnail() }
@@ -3736,6 +3736,8 @@ struct AudioBubbleView: View {
     let isFromMe: Bool
     let isTail: Bool
     let maxWidth: CGFloat
+    let bubbleFill: Color
+    let bubbleTextColor: Color
     @State private var player = AudioPlayerController()
     /// Effective playback URL — may be a local temp file if the source is
     /// a web-encrypted media file (sun_media_e2ee fragment).
@@ -3749,7 +3751,11 @@ struct AudioBubbleView: View {
     }
 
     private var bubbleMinWidth: CGFloat {
-        min(144, bubbleMaxWidth)
+        min(ChatDesignMetrics.Bubble.audioMinWidth, bubbleMaxWidth)
+    }
+
+    private var controlTint: Color {
+        isFromMe ? bubbleTextColor : Color.smAccent2
     }
 
     var body: some View {
@@ -3763,19 +3769,19 @@ struct AudioBubbleView: View {
             }) {
                 ZStack {
                     if isResolving {
-                        ProgressView().tint(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
+                        ProgressView().tint(controlTint)
                             .scaleEffect(0.7)
                     } else if resolveFailed {
                         Image(systemName: "exclamationmark.triangle.fill")
                             .font(.system(size: 15))
-                            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
+                            .foregroundStyle(controlTint)
                     } else {
                         Image(systemName: player.isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
+                            .foregroundStyle(controlTint)
                     }
                 }
-                .frame(width: 32, height: 32)
+                .frame(width: ChatDesignMetrics.Bubble.iconSize, height: ChatDesignMetrics.Bubble.iconSize)
                 .background(
                     Circle().fill(isFromMe ? Color.white.opacity(0.15) : Color.smAccent.opacity(0.12))
                 )
@@ -3790,25 +3796,19 @@ struct AudioBubbleView: View {
                     let progressIdx = player.duration > 0 ? Int(player.elapsed / player.duration * Double(bars.count)) : 0
                     ForEach(0..<bars.count, id: \.self) { i in
                         Capsule()
-                            .fill((i < progressIdx ? Color.smAccent : (isFromMe ? Color.smBubbleOutText.opacity(0.7) : Color.smMuted)))
+                            .fill((i < progressIdx ? controlTint : bubbleTextColor.opacity(isFromMe ? 0.62 : 0.48)))
                             .frame(width: 2, height: bars[i])
                     }
                 }
                 Text(formatTime(player.isPlaying ? player.elapsed : player.duration))
                     .font(.caption2.monospacedDigit().weight(.medium))
-                    .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
+                    .foregroundStyle(bubbleTextColor.opacity(0.62))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, ChatDesignMetrics.Bubble.cardHorizontalPadding)
+        .padding(.vertical, ChatDesignMetrics.Bubble.cardVerticalPadding)
         .frame(minWidth: bubbleMinWidth, maxWidth: bubbleMaxWidth, alignment: .leading)
-        .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
-        .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-        .overlay(
-            BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                .stroke(isFromMe ? Color.clear : Color.smBorderSoft, lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
+        .chatBubbleChrome(isFromMe: isFromMe, isTail: isTail, fill: bubbleFill)
         .task(id: url) { await resolveAndPrepare() }
         .onDisappear {
             player.stop()
@@ -3992,6 +3992,8 @@ struct FileBubbleView: View {
     let isFromMe: Bool
     let isTail: Bool
     let maxWidth: CGFloat
+    let bubbleFill: Color
+    let bubbleTextColor: Color
     @State private var shareDraft: ShareFileDraft?
     @State private var isDownloading = false
     /// Resolved URL (local temp file for web-encrypted files, original URL otherwise).
@@ -4021,14 +4023,14 @@ struct FileBubbleView: View {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(isFromMe ? Color.white.opacity(0.15) : Color.smAccent.opacity(0.12))
-                        .frame(width: 36, height: 36)
+                        .frame(width: ChatDesignMetrics.Bubble.fileIconSize, height: ChatDesignMetrics.Bubble.fileIconSize)
                     if isDownloading {
-                        ProgressView().tint(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
+                        ProgressView().tint(isFromMe ? bubbleTextColor : Color.smAccent2)
                             .scaleEffect(0.7)
                     } else {
                         Image(systemName: downloadFailed ? "exclamationmark.triangle.fill" : "doc.fill")
                             .font(.system(size: 16))
-                            .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smAccent2)
+                            .foregroundStyle(isFromMe ? bubbleTextColor : Color.smAccent2)
                     }
                 }
                 VStack(alignment: .leading, spacing: 2) {
@@ -4038,27 +4040,25 @@ struct FileBubbleView: View {
                         : name
                     Text(displayName)
                         .font(.caption.weight(.medium))
-                        .foregroundStyle(isFromMe ? Color.smBubbleOutText : Color.smText)
+                        .foregroundStyle(bubbleTextColor)
                         .lineLimit(1)
                         .truncationMode(.middle)
                     if !sizeText.isEmpty {
                         Text(sizeText)
                             .font(.caption2)
-                            .foregroundStyle(isFromMe ? Color.smBubbleOutText.opacity(0.6) : Color.smFaint)
+                            .foregroundStyle(bubbleTextColor.opacity(0.62))
                     }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .frame(minWidth: min(180, maxWidth), maxWidth: maxWidth, alignment: .leading)
-            .background(isFromMe ? Color.smBubbleOut : Color.smBubbleIn)
-            .clipShape(BubbleShape(isFromMe: isFromMe, isTail: isTail))
-            .overlay(
-                BubbleShape(isFromMe: isFromMe, isTail: isTail)
-                    .stroke(isFromMe ? Color.clear : Color.smBorderSoft, lineWidth: 0.5)
+            .padding(.horizontal, ChatDesignMetrics.Bubble.cardHorizontalPadding)
+            .padding(.vertical, ChatDesignMetrics.Bubble.cardVerticalPadding)
+            .frame(
+                minWidth: min(ChatDesignMetrics.Bubble.fileMinWidth, maxWidth),
+                maxWidth: maxWidth,
+                alignment: .leading
             )
-            .shadow(color: Color.black.opacity(0.08), radius: 1, x: 0, y: 1)
+            .chatBubbleChrome(isFromMe: isFromMe, isTail: isTail, fill: bubbleFill)
         }
         .buttonStyle(.plain)
         .disabled(isDownloading)
@@ -4141,8 +4141,8 @@ struct ShareSheet: UIViewControllerRepresentable {
 struct BubbleShape: Shape {
     let isFromMe: Bool
     let isTail: Bool
-    private let r: CGFloat = 18
-    private let tailR: CGFloat = 6
+    private let r: CGFloat = ChatDesignMetrics.Bubble.cornerRadius
+    private let tailR: CGFloat = ChatDesignMetrics.Bubble.tailRadius
 
     func path(in rect: CGRect) -> Path {
         var path = Path()

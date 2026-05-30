@@ -52,7 +52,7 @@ enum ChatMessageGrouping {
 }
 
 struct ChatMessageTimelineView: View, Equatable {
-    private static let horizontalContentPadding: CGFloat = 14
+    private static let horizontalContentPadding: CGFloat = ChatDesignMetrics.Timeline.horizontalPadding
 
     let rows: [ChatTimelineRow]
     let hasOlderMessages: Bool
@@ -291,8 +291,8 @@ struct ChatMessageTimelineView: View, Equatable {
                             )
                     }
                     .padding(.horizontal, Self.horizontalContentPadding)
-                    .padding(.top, 8)
-                    .padding(.bottom, 6)
+                    .padding(.top, ChatDesignMetrics.Timeline.topPadding)
+                    .padding(.bottom, ChatDesignMetrics.Timeline.bottomPadding)
                 }
                 .coordinateSpace(name: "message_scroll")
                 .scrollIndicators(.hidden)
@@ -421,7 +421,7 @@ struct ChatMessageTimelineView: View, Equatable {
 
     private func updatePinnedToBottom(bottomY: CGFloat, viewportHeight: CGFloat) {
         guard viewportHeight > 0, bottomY > 0 else { return }
-        let pinned = bottomY <= viewportHeight + 72
+        let pinned = bottomY <= viewportHeight + ChatDesignMetrics.Timeline.bottomPinTolerance
         if pinned != isPinnedToBottom {
             isPinnedToBottom = pinned
         }
@@ -431,10 +431,13 @@ struct ChatMessageTimelineView: View, Equatable {
         forViewportWidth width: CGFloat,
         isSelectionMode: Bool
     ) -> CGFloat {
-        let selectionReserve: CGFloat = isSelectionMode ? 36 : 0
+        let selectionReserve: CGFloat = isSelectionMode ? ChatDesignMetrics.Timeline.selectionReserve : 0
         let columnWidth = max(0, width - horizontalContentPadding * 2 - selectionReserve)
         guard columnWidth > 0 else { return 0 }
-        return min(330, max(0, columnWidth * 0.78))
+        return min(
+            ChatDesignMetrics.Timeline.maxBubbleWidth,
+            max(0, columnWidth * ChatDesignMetrics.Timeline.maxBubbleFraction)
+        )
     }
 
     private static func shouldShowDate(
@@ -506,8 +509,8 @@ private struct DateChipView: View {
                 .overlay(Capsule().stroke(Color.smBorderSoft, lineWidth: 0.5))
             Spacer(minLength: 0)
         }
-        .padding(.top, 10)
-        .padding(.bottom, 4)
+        .padding(.top, ChatDesignMetrics.Timeline.dateTopPadding)
+        .padding(.bottom, ChatDesignMetrics.Timeline.dateBottomPadding)
     }
 }
 
@@ -537,15 +540,15 @@ private struct TypingBubbleView: View {
                         .animation(animated ? .easeInOut(duration: Self.stepInterval) : nil, value: phase)
                 }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(Color.smBubbleIn)
-            .clipShape(RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18).corners(bottomLeft: 6)
-                    .stroke(Color.smBorderSoft, lineWidth: 0.5)
+            .padding(.horizontal, ChatDesignMetrics.Bubble.cardHorizontalPadding)
+            .padding(.vertical, ChatDesignMetrics.Bubble.cardVerticalPadding)
+            .chatBubbleChrome(
+                isFromMe: false,
+                isTail: true,
+                fill: Color.smSurface.opacity(0.96),
+                outgoingShadowOpacity: ChatDesignMetrics.Bubble.incomingShadowOpacity,
+                incomingShadowOpacity: ChatDesignMetrics.Bubble.incomingShadowOpacity
             )
-            .shadow(color: Color(hex: "#281e0f").opacity(0.04), radius: 1, x: 0, y: 1)
 
             Spacer(minLength: 44)
         }
@@ -554,35 +557,6 @@ private struct TypingBubbleView: View {
 
     private static func phase(for date: Date) -> Int {
         Int((date.timeIntervalSinceReferenceDate / stepInterval).rounded(.down)) % 3
-    }
-}
-
-private extension RoundedRectangle {
-    func corners(bottomLeft: CGFloat = 18) -> some Shape {
-        BubbleBottomLeftShape(cornerRadius: 18, tailRadius: bottomLeft)
-    }
-}
-
-private struct BubbleBottomLeftShape: Shape {
-    let cornerRadius: CGFloat
-    let tailRadius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let radius = cornerRadius
-        let tail = tailRadius
-
-        path.move(to: CGPoint(x: rect.minX + radius, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - radius, y: rect.minY))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + radius), control: CGPoint(x: rect.maxX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - radius))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX - radius, y: rect.maxY), control: CGPoint(x: rect.maxX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX + tail, y: rect.maxY))
-        path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - tail), control: CGPoint(x: rect.minX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + radius))
-        path.addQuadCurve(to: CGPoint(x: rect.minX + radius, y: rect.minY), control: CGPoint(x: rect.minX, y: rect.minY))
-        path.closeSubpath()
-        return path
     }
 }
 

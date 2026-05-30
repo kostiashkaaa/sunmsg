@@ -8,11 +8,7 @@ struct ChatTopBarView: View {
     let onBack: () -> Void
     let onOpenProfile: () -> Void
 
-    private enum Metrics {
-        static let barHeight: CGFloat = 56
-        static let sideWidth: CGFloat = 54
-        static let backTouchSize: CGFloat = 44
-    }
+    private typealias Metrics = ChatDesignMetrics.TopBar
 
     var body: some View {
         HStack(spacing: 0) {
@@ -73,7 +69,7 @@ struct ChatHeaderView: View {
             HStack(spacing: 9) {
                 avatar
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ChatDesignMetrics.TopBar.titleStatusSpacing) {
                     HStack(spacing: 4) {
                         Text(displayName)
                             .font(.headline.weight(.semibold))
@@ -98,9 +94,9 @@ struct ChatHeaderView: View {
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, ChatDesignMetrics.TopBar.contentHorizontalPadding)
             .frame(minWidth: 0, maxWidth: .infinity, alignment: .center)
-            .frame(height: 48)
+            .frame(height: ChatDesignMetrics.TopBar.headerHeight)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -119,13 +115,13 @@ struct ChatHeaderView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(Color.smSurface)
                 }
-                .frame(width: 36, height: 36)
+                .frame(width: ChatDesignMetrics.TopBar.avatarSize, height: ChatDesignMetrics.TopBar.avatarSize)
             } else {
                 SmAvatarView(
                     name: contact.displayName,
                     avatarUrl: contact.avatarUrl,
                     isGroup: contact.isGroup,
-                    size: 36
+                    size: ChatDesignMetrics.TopBar.avatarSize
                 )
             }
 
