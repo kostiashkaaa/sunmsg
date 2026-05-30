@@ -3361,6 +3361,7 @@ struct AppearanceSettingsView: View {
     @State private var clientPreferences: [String: Any] = [:]
     @State private var selectedBackgroundItem: PhotosPickerItem?
     @State private var error: String?
+    @State private var hexSaveTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -3462,6 +3463,7 @@ struct AppearanceSettingsView: View {
         .onChange(of: selectedBackgroundItem) { _, item in
             Task { await importBackground(item) }
         }
+        .onDisappear { flushPendingHexSave() }
     }
 
     private func schemeRussian(_ scheme: AppColorScheme) -> String {
@@ -3483,7 +3485,7 @@ struct AppearanceSettingsView: View {
                 get: { text.wrappedValue },
                 set: { value in
                     text.wrappedValue = normalizeHex(value)
-                    saveAppearance()
+                    scheduleHexSave()
                 }
             ))
             .multilineTextAlignment(.trailing)
@@ -3567,6 +3569,26 @@ struct AppearanceSettingsView: View {
             catch APIError.unauthorized { session.route = .login }
             catch { self.error = error.localizedDescription }
         }
+    }
+
+    private func scheduleHexSave() {
+        hexSaveTask?.cancel()
+        hexSaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 450_000_000)
+            } catch {
+                return
+            }
+            hexSaveTask = nil
+            saveAppearance()
+        }
+    }
+
+    private func flushPendingHexSave() {
+        guard hexSaveTask != nil else { return }
+        hexSaveTask?.cancel()
+        hexSaveTask = nil
+        saveAppearance()
     }
 
     private func applyThemePreset(_ preset: String) {
