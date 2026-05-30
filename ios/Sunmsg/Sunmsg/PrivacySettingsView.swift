@@ -329,6 +329,7 @@ struct TotpSettingsView: View {
     @State private var newBackupCodes: [String] = []
     @State private var pendingAction: TotpPendingAction?
     @State private var setupQRImage: UIImage?
+    @State private var statusLoadToken: UUID?
     private static let enabledAtParser: DateFormatter = {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "ru_RU")
@@ -675,16 +676,27 @@ struct TotpSettingsView: View {
     }
 
     private func loadStatus(showSpinner: Bool = true) async {
+        let loadToken = UUID()
+        statusLoadToken = loadToken
         if showSpinner { isLoading = true }
         error = nil
+        defer {
+            if statusLoadToken == loadToken {
+                isLoading = false
+                statusLoadToken = nil
+            }
+        }
         do {
-            status = try await session.api.getTotpStatus()
+            let response = try await session.api.getTotpStatus()
+            guard !Task.isCancelled, statusLoadToken == loadToken else { return }
+            status = response
         } catch APIError.unauthorized {
+            guard !Task.isCancelled, statusLoadToken == loadToken else { return }
             session.route = .login
         } catch {
+            guard !Task.isCancelled, statusLoadToken == loadToken else { return }
             self.error = error.localizedDescription
         }
-        isLoading = false
     }
 
     private func performConfirmedAction(_ action: TotpPendingAction) async {
@@ -695,6 +707,7 @@ struct TotpSettingsView: View {
     private func manageTotp(action: String) async {
         guard !isWorking else { return }
         isWorking = true
+        statusLoadToken = nil
         error = nil
         defer { isWorking = false }
         do {
@@ -718,6 +731,7 @@ struct TotpSettingsView: View {
         let code = sanitizedCode(setupCode)
         guard code.count == 6, !isWorking else { return }
         isWorking = true
+        statusLoadToken = nil
         error = nil
         defer { isWorking = false }
         do {
@@ -737,6 +751,7 @@ struct TotpSettingsView: View {
         let code = sanitizedCode(regenerateCode)
         guard code.count == 6, !isWorking else { return }
         isWorking = true
+        statusLoadToken = nil
         error = nil
         defer { isWorking = false }
         do {
