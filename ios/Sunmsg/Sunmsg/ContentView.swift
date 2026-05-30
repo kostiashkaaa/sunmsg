@@ -1977,29 +1977,40 @@ struct ProfileSettingsView: View {
         }.value
     }
 
-    private func uploadAvatar(_ data: Data) async {
+    private func uploadAvatar(_ data: Data) async -> String? {
         isUploadingAvatar = true
+        defer { isUploadingAvatar = false }
         saveError = nil
         do {
             _ = try await session.api.uploadAvatar(data: data, mimeType: "image/jpeg")
             await session.loadBootstrap()
+            guard session.route == .main else {
+                let message = session.errorMessage ?? "Не удалось обновить профиль. Попробуйте ещё раз."
+                session.errorMessage = nil
+                saveError = message
+                return message
+            }
+            return nil
         } catch APIError.unauthorized {
             session.route = .login
+            return "Сессия истекла. Войдите снова."
         } catch {
-            saveError = error.localizedDescription
+            let message = error.localizedDescription
+            saveError = message
+            return message
         }
-        isUploadingAvatar = false
     }
 }
 
 private struct AvatarEditorView: View {
     @Environment(\.dismiss) private var dismiss
     let image: UIImage
-    let onSave: (Data) async -> Void
+    let onSave: (Data) async -> String?
 
     @State private var zoom = 1.0
     @State private var rotation = 0.0
     @State private var isSaving = false
+    @State private var saveError: String?
 
     var body: some View {
         NavigationStack {
@@ -2039,6 +2050,14 @@ private struct AvatarEditorView: View {
                 } header: {
                     Text("Кадр")
                 }
+
+                if let saveError {
+                    Section {
+                        Text(saveError)
+                            .font(.footnote)
+                            .foregroundStyle(Color.smDanger)
+                    }
+                }
             }
             .navigationTitle("Фото профиля")
             .smSettingsScreenStyle()
@@ -2062,11 +2081,17 @@ private struct AvatarEditorView: View {
         guard !isSaving else { return }
         isSaving = true
         Task { @MainActor in
+            saveError = nil
             guard let data = await renderCroppedJPEG() else {
+                saveError = "Не удалось подготовить изображение."
                 isSaving = false
                 return
             }
-            await onSave(data)
+            if let error = await onSave(data) {
+                saveError = error
+                isSaving = false
+                return
+            }
             isSaving = false
             dismiss()
         }
