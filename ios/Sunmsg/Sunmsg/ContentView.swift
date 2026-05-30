@@ -2271,6 +2271,7 @@ struct DataMemorySettingsView: View {
     @State private var storageBytes = 0
     @State private var isWorking = false
     @State private var error: String?
+    @State private var policySaveTask: Task<Void, Never>?
 
     var body: some View {
         Form {
@@ -2337,6 +2338,7 @@ struct DataMemorySettingsView: View {
             await loadPreferences()
             await refreshStorageUsage()
         }
+        .onDisappear { flushPendingPolicySave() }
     }
 
     private var cacheLimitLabel: String {
@@ -2370,10 +2372,36 @@ struct DataMemorySettingsView: View {
     private func saveClientPreferences(_ updates: [String: Any]) {
         let payload = SettingsClientPreferences.mergedClientPreferences(base: clientPreferences, updates: updates)
         clientPreferences = payload
-        Task {
-            do { try await session.api.saveSettings(["client_preferences": payload]) }
-            catch APIError.unauthorized { session.route = .login }
-            catch { self.error = error.localizedDescription }
+        schedulePolicySave(payload)
+    }
+
+    private func schedulePolicySave(_ payload: [String: Any]) {
+        policySaveTask?.cancel()
+        policySaveTask = Task { @MainActor in
+            do {
+                try await Task.sleep(nanoseconds: 350_000_000)
+            } catch {
+                return
+            }
+            policySaveTask = nil
+            await persistPolicy(payload)
+        }
+    }
+
+    private func flushPendingPolicySave() {
+        guard let task = policySaveTask else { return }
+        task.cancel()
+        policySaveTask = nil
+        Task { await persistPolicy(clientPreferences) }
+    }
+
+    private func persistPolicy(_ payload: [String: Any]) async {
+        do {
+            try await session.api.saveSettings(["client_preferences": payload])
+        } catch APIError.unauthorized {
+            session.route = .login
+        } catch {
+            self.error = error.localizedDescription
         }
     }
 
