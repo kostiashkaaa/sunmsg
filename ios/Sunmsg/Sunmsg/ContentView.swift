@@ -3830,17 +3830,21 @@ struct SupportSettingsView: View {
                     Text("Безопасность").tag("security")
                     Text("Другое").tag("other")
                 }
+                .onChange(of: category) { _, _ in clearSubmissionFeedback() }
                 TextField("Контакт для ответа", text: $contact)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled(true)
+                    .onChange(of: contact) { _, _ in clearSubmissionFeedback() }
                 TextField("Тема", text: $subject)
                     .onChange(of: subject) { _, value in
                         if value.count > 160 { subject = String(value.prefix(160)) }
+                        clearSubmissionFeedback(forEditedText: value)
                     }
                 TextEditor(text: $message)
                     .frame(minHeight: 160)
                     .onChange(of: message) { _, value in
                         if value.count > 8000 { message = String(value.prefix(8000)) }
+                        clearSubmissionFeedback(forEditedText: value)
                     }
                 Text("\(message.count)/8000")
                     .font(.caption)
@@ -3865,6 +3869,19 @@ struct SupportSettingsView: View {
         }
         .navigationTitle("Поддержка")
         .smSettingsScreenStyle()
+    }
+
+    private func clearSubmissionFeedback(forEditedText value: String? = nil) {
+        if let value, value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return
+        }
+        clearSubmissionFeedback()
+    }
+
+    private func clearSubmissionFeedback() {
+        guard !isSubmitting, (submittedId != nil || error != nil) else { return }
+        submittedId = nil
+        error = nil
     }
 
     private func submit() async {
