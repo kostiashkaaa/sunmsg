@@ -419,7 +419,7 @@ struct NativeRegisterView: View {
                 )
 
                 // 6. Store private key in Keychain, load session
-                try? KeychainService.savePrivateKey(keyMaterial.privatePEM)
+                try await AuthKeychainPersistence.savePrivateKey(keyMaterial.privatePEM)
                 await session.loadBootstrap()
                 if session.route != .main {
                     step = .error(session.errorMessage ?? "Не удалось загрузить сессию. Попробуйте ещё раз.")

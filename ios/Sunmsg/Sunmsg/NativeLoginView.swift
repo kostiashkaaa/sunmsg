@@ -1,5 +1,13 @@
 import SwiftUI
 
+enum AuthKeychainPersistence {
+    static func savePrivateKey(_ privateKeyPEM: String) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            try KeychainService.savePrivateKey(privateKeyPEM)
+        }.value
+    }
+}
+
 // MARK: - Login flow steps
 
 private enum LoginFlow: Equatable {
@@ -526,7 +534,7 @@ struct NativeLoginView: View {
                 if loginResp.requiresTotp {
                     flow = .totp(csrfToken: loginResp.csrfToken ?? csrfTok, privateKeyPEM: privateKeyPEM)
                 } else {
-                    try? KeychainService.savePrivateKey(privateKeyPEM)
+                    try await AuthKeychainPersistence.savePrivateKey(privateKeyPEM)
                     await session.loadBootstrap()
                     if session.route != .main {
                         flow = .error(session.errorMessage ?? "Не удалось загрузить сессию. Попробуйте ещё раз.")
@@ -573,7 +581,7 @@ struct NativeLoginView: View {
             return
         }
 
-        try? KeychainService.savePrivateKey(privateKeyPEM)
+        try await AuthKeychainPersistence.savePrivateKey(privateKeyPEM)
         await session.loadBootstrap()
         if session.route != .main {
             let message = session.errorMessage ?? "Не удалось загрузить сессию. Попробуйте ещё раз."
@@ -596,7 +604,7 @@ struct NativeLoginView: View {
             do {
                 APIClient.shared.csrfToken = csrfTok
                 _ = try await APIClient.shared.loginTOTP(code: totpCode)
-                try? KeychainService.savePrivateKey(privateKeyPEM)
+                try await AuthKeychainPersistence.savePrivateKey(privateKeyPEM)
                 await session.loadBootstrap()
                 if session.route != .main {
                     flow = .totp(csrfToken: csrfTok, privateKeyPEM: privateKeyPEM)
