@@ -610,18 +610,21 @@ struct NativeLoginView: View {
                     flow = .totp(csrfToken: csrfTok, privateKeyPEM: privateKeyPEM)
                     totpError = session.errorMessage ?? "Не удалось загрузить сессию."
                     session.errorMessage = nil
+                    focusedField = .totp
                 }
             } catch let apiErr as APIError {
                 await MainActor.run {
                     totpCode = ""
                     totpError = apiErr.localizedDescription
                     flow = .totp(csrfToken: csrfTok, privateKeyPEM: privateKeyPEM)
+                    focusedField = .totp
                 }
             } catch {
                 await MainActor.run {
                     totpCode = ""
                     totpError = error.localizedDescription
                     flow = .totp(csrfToken: csrfTok, privateKeyPEM: privateKeyPEM)
+                    focusedField = .totp
                 }
             }
         }
