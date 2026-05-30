@@ -12,6 +12,7 @@ private enum RegisterStep: Equatable {
 
 struct NativeRegisterView: View {
     @EnvironmentObject var session: SessionStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var username = ""
     @State private var displayName = ""
@@ -137,13 +138,17 @@ struct NativeRegisterView: View {
             }
             .buttonStyle(.plain)
             .disabled(!isFormValid)
-            .animation(.easeInOut(duration: 0.15), value: isFormValid)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.15), value: isFormValid)
 
             // Back to login
             Button(action: {
                 focusedField = nil
-                withAnimation(.easeInOut(duration: 0.22)) {
+                if reduceMotion {
                     session.route = .login
+                } else {
+                    withAnimation(.easeInOut(duration: 0.22)) {
+                        session.route = .login
+                    }
                 }
             }) {
                 Text("Уже есть аккаунт? Войти")
@@ -219,7 +224,7 @@ struct NativeRegisterView: View {
                 )
             }
             .buttonStyle(.plain)
-            .animation(.easeInOut(duration: 0.2), value: mnemonicCopied)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: mnemonicCopied)
 
             Text("Эта фраза — единственный способ восстановить аккаунт. Сохраните её в надёжном месте — она никогда не отправляется на сервер.")
                 .font(.caption)
