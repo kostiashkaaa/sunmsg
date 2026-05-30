@@ -116,13 +116,17 @@ struct IncomingCallView: View {
     @MainActor
     private func runHapticLoop() async {
         let generator = UIImpactFeedbackGenerator(style: .medium)
-        while !Task.isCancelled {
-            generator.prepare()
-            try? await Task.sleep(nanoseconds: 1_250_000_000)
-            guard !Task.isCancelled else {
-                return
+        do {
+            while !Task.isCancelled {
+                generator.prepare()
+                try await Task.sleep(nanoseconds: 1_250_000_000)
+                try Task.checkCancellation()
+                generator.impactOccurred()
             }
-            generator.impactOccurred()
+        } catch is CancellationError {
+            return
+        } catch {
+            return
         }
     }
 }
