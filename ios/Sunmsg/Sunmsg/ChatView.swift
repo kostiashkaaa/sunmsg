@@ -2683,6 +2683,9 @@ struct MessageBubbleView: View {
             return clampedMaxBubbleWidth
         }
     }
+    private var messageBlockWidth: CGFloat {
+        isTextBubble ? clampedMaxBubbleWidth : nonTextBlockWidth
+    }
 
     var body: some View {
         Group {
@@ -2731,7 +2734,7 @@ struct MessageBubbleView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .padding(.leading, 4)
-                    .frame(maxWidth: clampedMaxBubbleWidth, alignment: .leading)
+                    .frame(maxWidth: messageBlockWidth, alignment: .leading)
             }
 
             if let forwardFromName = message.forwardFromName?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -2786,7 +2789,7 @@ struct MessageBubbleView: View {
         }
         .foregroundStyle(Color.smAccent2)
         .padding(isFromMe ? .trailing : .leading, 4)
-        .frame(maxWidth: clampedMaxBubbleWidth, alignment: isFromMe ? .trailing : .leading)
+        .frame(maxWidth: messageBlockWidth, alignment: isFromMe ? .trailing : .leading)
     }
 
     private var pinnedLabel: some View {
@@ -2798,6 +2801,7 @@ struct MessageBubbleView: View {
         }
         .foregroundStyle(Color.smFaint)
         .padding(isFromMe ? .trailing : .leading, 4)
+        .frame(maxWidth: messageBlockWidth, alignment: isFromMe ? .trailing : .leading)
     }
 
     // MARK: - Time / read-receipt row
