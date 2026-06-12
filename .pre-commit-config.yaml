@@ -6,3 +6,8 @@ repos:
         entry: python scripts/check_text_encoding.py
         language: system
         pass_filenames: false
+      - id: ruff
+        name: Ruff Lint
+        entry: ruff check .
+        language: system
+        pass_filenames: false
