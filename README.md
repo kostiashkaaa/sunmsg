@@ -110,6 +110,16 @@ See [`docs/production-deployment.md`](docs/production-deployment.md). In short:
 - The deploy builds `release.tar.gz` and runs it over SSH; migrations run as
   part of the deploy
 
+## Security
+
+See [`docs/security-architecture.md`](docs/security-architecture.md) for the
+full security model: authentication (sessions, TOTP, WebAuthn), end-to-end
+encryption (and its current transition state), CSP, fail-closed production boot
+checks, abuse-resistant rate limiting, and the data-integrity layer.
+
+To report a vulnerability, please contact the maintainer privately rather than
+opening a public issue.
+
 ## License
 
 [MIT](LICENSE)
