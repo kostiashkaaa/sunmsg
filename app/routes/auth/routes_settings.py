@@ -258,7 +258,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
 
     conn = get_db_connection()
     try:
-        # Читаем старые настройки ДО обновления (чтобы отследить изменения)
+        # Read the old settings BEFORE the update (to track what changed)
         old_user = conn.execute(
             '''
             SELECT username, display_name, avatar_url, bio, status_text, hide_online_status, bio_visibility
@@ -332,7 +332,7 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
         except IntegrityError:
             return jsonify({'success': False, 'error': 'Это имя пользователя уже занято.'}), 400
 
-        # Читаем актуальные данные после обновления
+        # Read the fresh data after the update
         updated = conn.execute(
             '''
             SELECT id, username, display_name, public_key, avatar_url, bio, status_text,
@@ -376,23 +376,23 @@ def api_save_settings():  # noqa: C901, PLR0915 - settings normalization and per
                     'status_text':  (updated['status_text'] or '') if 'status_text' in updated.keys() else '',
                 }
 
-                # Эмитим каждому контакту в его персональную комнату
+                # Emit to each contact's personal room
                 for c in contacts:
                     _emit_socket_event('profile_updated', profile_payload, room=c['public_key'])
 
-                # Самому себе (для обновления сайдбара)
+                # And to ourselves (to refresh the sidebar)
                 _emit_socket_event('own_profile_updated', profile_payload, room=pub)
 
-            # Реалтайм-обновление онлайн-статуса при изменении настройки скрытия
+            # Real-time online-status update when the hide-status setting changes
             if status_changed:
                 contact_pub_keys = [c['public_key'] for c in contacts]
                 if new_hide:
-                    # Скрыли статус — отправить "оффлайн" всем контактам
+                    # Status hidden — send "offline" to all contacts
                     status_payload = {'public_key': pub, 'online': False, 'last_seen': None}
                     for cpk in contact_pub_keys:
                         _emit_socket_event('user_status', status_payload, room=cpk)
                 else:
-                    # Показали статус — отправить реальный статус
+                    # Status unhidden — send the real status
                     is_online = is_effectively_online(
                         pub,
                         persisted=bool(updated['is_online']) if 'is_online' in updated.keys() else False,
@@ -471,16 +471,16 @@ def delete_account():
                 tuple(media_lookup_params)
             )
 
-        # 1. Удаляем все сообщения, где пользователь отправитель или получатель
+        # 1. Delete all messages where the user is the sender or recipient
         conn.execute('DELETE FROM messages WHERE sender_id = ? OR receiver_id = ?', (user_id, user_id))
 
-        # 2. Удаляем все контакты пользователя (и записи о нем у других)
+        # 2. Delete all the user's contacts (and others' records of them)
         conn.execute('DELETE FROM contacts WHERE user_id = ? OR contact_id = ?', (user_id, user_id))
 
-        # 3. Удаляем запросы на диалог
+        # 3. Delete conversation requests
         conn.execute('DELETE FROM dialog_requests WHERE sender_id = ? OR receiver_id = ?', (user_id, user_id))
 
-        # 4. Удаляем связанные служебные данные и артефакты чатов.
+        # 4. Delete related service data and chat artifacts.
         conn.execute('DELETE FROM block_list WHERE blocker_id = ? OR blocked_id = ?', (user_id, user_id))
         conn.execute('DELETE FROM pinned_chats WHERE user_id = ?', (user_id,))
         conn.execute('DELETE FROM socket_rate_limits WHERE user_id = ?', (user_id,))
@@ -501,7 +501,7 @@ def delete_account():
                 tuple(direct_chat_ids),
             )
 
-        # 5. Удаляем самого пользователя
+        # 5. Delete the user record itself
         conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
 
         conn.commit()

@@ -778,12 +778,12 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
     if migration_applied(cursor, CRYPTO_V2_SCHEMA_MIGRATION[0]):
         return
 
-    # X25519 и Ed25519 публичные ключи пользователя (дополняют RSA legacy)
+    # Per-user X25519 and Ed25519 public keys (complementing legacy RSA)
     add_column_if_missing(conn, cursor, 'users', 'x25519_public_key', 'x25519_public_key TEXT DEFAULT NULL')
     add_column_if_missing(conn, cursor, 'users', 'ed25519_public_key', 'ed25519_public_key TEXT DEFAULT NULL')
     add_column_if_missing(conn, cursor, 'users', 'crypto_version', "crypto_version INTEGER NOT NULL DEFAULT 2")
 
-    # Prekey bundle: signed prekeys и one-time prekeys для X3DH
+    # Prekey bundle: signed prekeys and one-time prekeys for X3DH
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS user_signed_prekeys (
@@ -819,7 +819,7 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
         ' ON user_one_time_prekeys(user_id) WHERE claimed_at IS NULL'
     )
 
-    # Double Ratchet сессии для 1:1 чатов
+    # Double Ratchet sessions for 1:1 chats
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS dr_sessions (
@@ -838,7 +838,7 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
         'CREATE INDEX IF NOT EXISTS idx_dr_sessions_chat_owner ON dr_sessions(chat_id, owner_user_id)'
     )
 
-    # Буфер пропущенных DR ключей (out-of-order доставка)
+    # Buffer of skipped DR keys (out-of-order delivery)
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS dr_skipped_keys (
@@ -856,7 +856,7 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
         'CREATE INDEX IF NOT EXISTS idx_dr_skipped_session ON dr_skipped_keys(session_id)'
     )
 
-    # MLS группы: состояние группы и epoch
+    # MLS groups: group state and epoch
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS mls_groups (
@@ -874,7 +874,7 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
         'CREATE INDEX IF NOT EXISTS idx_mls_groups_chat ON mls_groups(chat_id)'
     )
 
-    # MLS KeyPackages для вступления в группу
+    # MLS KeyPackages for joining a group
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS mls_key_packages (
@@ -892,7 +892,7 @@ def _run_crypto_v2_schema_migration(conn, cursor) -> None:
         ' ON mls_key_packages(user_id) WHERE claimed_at IS NULL'
     )
 
-    # Очередь MLS Welcome/Commit сообщений
+    # Queue of MLS Welcome/Commit messages
     cursor.execute(
         '''
         CREATE TABLE IF NOT EXISTS mls_pending_messages (

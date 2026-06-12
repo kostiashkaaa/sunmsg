@@ -160,7 +160,7 @@ def _is_valid_e2ee_message_payload(raw_message: str, *, chat_type: str) -> bool:
 
     version = payload.get('v')
 
-    # v3: X25519/Double Ratchet/MLS payload — валидируется отдельным модулем
+    # v3: X25519/Double Ratchet/MLS payload — validated by a dedicated module
     if version == 3:
         from app.services.crypto import is_valid_v3_payload
         return is_valid_v3_payload(raw_message)

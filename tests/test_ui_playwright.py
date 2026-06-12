@@ -1,19 +1,19 @@
 """
 E2E / UI tests using Playwright — smoke tests for JS module integrity.
 
-Запускает реальное Flask-приложение в тестовом режиме и проверяет через браузер:
-  1. Страница авторизации загружается (нет JS ошибок).
-  2. После входа: /chat загружается, chat.js не кидает ошибок при инициализации.
-  3. Все критические ES-модули успешно разбираются браузером (нет SyntaxError).
-  4. Нет console.error при загрузке страницы чата.
-  5. initChatPage не бросает исключений — window.SUN_BOOTSTRAP обрабатывается корректно.
+Runs the real Flask app in testing mode and verifies through a browser:
+  1. The auth page loads (no JS errors).
+  2. After login: /chat loads, chat.js throws no errors during initialization.
+  3. All critical ES modules parse successfully in the browser (no SyntaxError).
+  4. No console.error while loading the chat page.
+  5. initChatPage raises no exceptions — window.SUN_BOOTSTRAP is handled correctly.
 
-Запуск (нужен запущенный сервер или встроенный test-сервер):
+Running (needs a live server or the built-in test server):
     pytest tests/test_ui_playwright.py -v
 
-Переменные окружения:
-    PLAYWRIGHT_BASE_URL   — базовый URL сервера (default: http://localhost:5000)
-    PLAYWRIGHT_HEADLESS   — '0' для видимого браузера, '1' (default) для headless
+Environment variables:
+    PLAYWRIGHT_BASE_URL   — base server URL (default: http://localhost:5000)
+    PLAYWRIGHT_HEADLESS   — '0' for a visible browser, '1' (default) for headless
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 # ---------------------------------------------------------------------------
-# Попытка импортировать Playwright — если нет, тесты пропускаются
+# Try to import Playwright — if missing, the tests are skipped
 # ---------------------------------------------------------------------------
 try:
     from playwright.sync_api import (
@@ -55,7 +55,7 @@ ROOT = Path(__file__).resolve().parents[1]
 STATIC = ROOT / 'static'
 
 # ---------------------------------------------------------------------------
-# Конфиг
+# Config
 # ---------------------------------------------------------------------------
 _DEFAULT_BASE_URL = 'http://localhost:5000'
 _HEADLESS = os.environ.get('PLAYWRIGHT_HEADLESS', '1') != '0'
@@ -75,14 +75,14 @@ def _base_url() -> str:
 @pytest.fixture(scope='session')
 def _flask_server():
     """
-    Запускает встроенный Flask test-сервер если PLAYWRIGHT_BASE_URL не задан.
-    Если задан — предполагаем, что сервер уже запущен снаружи.
+    Start the built-in Flask test server when PLAYWRIGHT_BASE_URL is unset.
+    When it is set, assume the server is already running externally.
     """
     if os.environ.get('PLAYWRIGHT_BASE_URL'):
         yield _base_url()
         return
 
-    # Запускаем Flask в отдельном потоке
+    # Run Flask in a separate thread
     import sys
     sys.path.insert(0, str(ROOT))
 
@@ -100,7 +100,7 @@ def _flask_server():
     server_thread = None
 
     def _run():
-        # Используем встроенный werkzeug-сервер только для smoke-тестов
+        # Use the built-in werkzeug server for smoke tests only
         from werkzeug.serving import make_server
         srv = make_server('127.0.0.1', 5001, app, threaded=True)
         server_started.set()
@@ -110,11 +110,11 @@ def _flask_server():
         server_thread = threading.Thread(target=_run, daemon=True)
         server_thread.start()
         server_started.wait(timeout=10)
-        time.sleep(0.5)  # даём werkzeug поднять сокет
+        time.sleep(0.5)  # give werkzeug time to open the socket
         yield 'http://127.0.0.1:5001'
     finally:
         _TEST_APP = None
-        pass  # daemon thread завершится вместе с процессом
+        pass  # the daemon thread dies with the process
 
 
 @pytest.fixture(scope='session')
@@ -147,7 +147,7 @@ def page(browser_instance: 'Browser', _flask_server) -> Generator:
 # ---------------------------------------------------------------------------
 
 def _collect_console_errors(page: 'Page') -> list[str]:
-    """Собирает все console.error-сообщения."""
+    """Collect all console.error messages."""
     errors: list[str] = []
 
     def _on_console(msg: 'ConsoleMessage'):
@@ -159,7 +159,7 @@ def _collect_console_errors(page: 'Page') -> list[str]:
 
 
 def _collect_page_errors(page: 'Page') -> list[str]:
-    """Собирает все необработанные JS-ошибки (pageerror)."""
+    """Collect all unhandled JS errors (pageerror)."""
     errors: list[str] = []
     page.on('pageerror', lambda exc: errors.append(str(exc)))
     return errors
@@ -328,48 +328,48 @@ def _wait_chat_realtime_ready(page: 'Page', public_key: str, *, timeout_seconds:
 
 
 # ---------------------------------------------------------------------------
-# Тест 1: Страница / (redirect) или /login доступна
+# Test 1: the / page (redirect) or /login is reachable
 # ---------------------------------------------------------------------------
 
 def test_root_redirects_to_login_or_chat(page: 'Page', _flask_server):
-    """Корень приложения / доступен — либо страница входа, либо редирект на /chat."""
+    """The app root / is reachable — either the login page or a redirect to /chat."""
     response = page.goto('/', wait_until='domcontentloaded')
     assert response is not None
-    # / отвечает 200 (страница auth/index) или 3xx редирект
+    # / answers 200 (auth/index page) or a 3xx redirect
     assert response.status < 500, (
-        f'Корневая страница вернула {response.status} — внутренняя ошибка сервера'
+        f'The root page returned {response.status} — internal server error'
     )
-    # Либо остаёмся на /, либо уходим на /chat
+    # Either stay on / or move to /chat
     url = page.url
     assert '127.0.0.1' in url or 'localhost' in url, (
-        f'Неожиданный URL: {url}'
+        f'Unexpected URL: {url}'
     )
 
 
 # ---------------------------------------------------------------------------
-# Тест 2: Страница /login загружается без JS ошибок
+# Test 2: the /login page loads without JS errors
 # ---------------------------------------------------------------------------
 
 def test_auth_page_loads_without_js_errors(page: 'Page', _flask_server):
-    """Главная страница авторизации (/) загружается, нет JS синтаксических ошибок."""
+    """The main auth page (/) loads with no JS syntax errors."""
     js_errors = _collect_page_errors(page)
     response = page.goto('/', wait_until='networkidle')
     assert response is not None
-    assert response.status in (200, 302), f'/ вернул {response.status}'
+    assert response.status in (200, 302), f'/ returned {response.status}'
 
-    # Нет SyntaxError в JS
+    # No SyntaxError in JS
     syntax_errors = [e for e in js_errors if 'SyntaxError' in e]
     assert not syntax_errors, (
-        'SyntaxError на странице /:\n' + '\n'.join(syntax_errors)
+        'SyntaxError on the / page:\n' + '\n'.join(syntax_errors)
     )
 
-    # Форма входа или страница входа присутствует
+    # A login form or login page is present
     form = page.locator('form')
-    assert form.count() > 0, 'Нет формы на главной странице'
+    assert form.count() > 0, 'No form on the main page'
 
 
 # ---------------------------------------------------------------------------
-# Тест 3: Статичные JS-модули возвращают 200 и правильный Content-Type
+# Test 3: static JS modules return 200 and the right Content-Type
 # ---------------------------------------------------------------------------
 
 CRITICAL_JS_MODULES = [
@@ -392,32 +392,32 @@ CRITICAL_JS_MODULES = [
 
 @pytest.mark.parametrize('path', CRITICAL_JS_MODULES)
 def test_static_js_modules_return_200(path: str, page: 'Page', _flask_server):
-    """Каждый JS-модуль доступен по HTTP и не возвращает 404/500."""
+    """Every JS module is reachable over HTTP and does not return 404/500."""
     response = page.goto(path, wait_until='domcontentloaded')
-    assert response is not None, f'Нет ответа для {path}'
+    assert response is not None, f'No response for {path}'
     assert response.status == 200, (
-        f'{path} вернул HTTP {response.status} — модуль недоступен'
+        f'{path} returned HTTP {response.status} — module unavailable'
     )
     ct = response.headers.get('content-type', '')
     assert 'javascript' in ct or 'text/plain' in ct or 'application/octet-stream' in ct, (
-        f'{path}: Content-Type = {ct!r} — ожидался JavaScript'
+        f'{path}: Content-Type = {ct!r} — expected JavaScript'
     )
 
 
 # ---------------------------------------------------------------------------
-# Тест 4: chat.js не содержит SyntaxError (парсинг через браузер)
+# Test 4: chat.js has no SyntaxError (parsed by the browser)
 # ---------------------------------------------------------------------------
 
 def test_chat_js_has_no_syntax_errors(page: 'Page', _flask_server):
     """
-    Загружаем chat.js как ES-модуль в пустой странице.
-    Если в нём есть SyntaxError — pageerror поймает его.
+    Load chat.js as an ES module on an empty page.
+    A SyntaxError in it would be caught via pageerror.
     """
     js_errors = _collect_page_errors(page)
 
-    # Создаём минимальную HTML-страницу и делаем goto на неё через data: URL
-    # чтобы браузер мог правильно резолвить /static/ пути
-    page.goto('/', wait_until='domcontentloaded')  # устанавливаем origin
+    # Create a minimal HTML page and goto it via a data: URL
+    # so the browser can resolve /static/ paths correctly
+    page.goto('/', wait_until='domcontentloaded')  # establish the origin
     page.evaluate(
         """async () => {
             try {
@@ -432,31 +432,31 @@ def test_chat_js_has_no_syntax_errors(page: 'Page', _flask_server):
 
     syntax_errors = [e for e in js_errors if 'SyntaxError' in e or 'Unexpected token' in e]
     assert not syntax_errors, (
-        'chat.js содержит синтаксические ошибки:\n' + '\n'.join(syntax_errors)
+        'chat.js contains syntax errors:\n' + '\n'.join(syntax_errors)
     )
-    # dynamic import может упасть по причине missing deps (нет socket.io и т.д.) — это OK
-    # нас интересует только SyntaxError
+    # dynamic import may fail due to missing deps (no socket.io, etc.) — that is OK
+    # we only care about SyntaxError
 
 
 # ---------------------------------------------------------------------------
-# Тест 5: Все JS-модули парсятся без ошибок (пакетная проверка)
+# Test 5: all JS modules parse without errors (batch check)
 # ---------------------------------------------------------------------------
 
 def test_all_modules_parse_without_syntax_errors(page: 'Page', _flask_server):
     """
-    Загружаем каждый модуль через dynamic import() в браузере.
-    SyntaxError → тест падает и указывает на проблемный файл.
+    Load every module via dynamic import() in the browser.
+    SyntaxError → the test fails and points at the broken file.
     """
     module_paths = [
         f.name for f in (STATIC / 'modules').glob('*.js')
-        # IIFE-модули не являются ES-модулями — пропускаем
+        # IIFE modules are not ES modules — skip them
         if f.name not in {'device-key.js', 'private-key-session-bridge.js'}
     ]
-    assert module_paths, 'Нет модулей для проверки'
+    assert module_paths, 'No modules to check'
 
     errors_found: list[str] = []
 
-    # Загружаем origin-страницу один раз
+    # Load the origin page once
     page.goto('/', wait_until='domcontentloaded')
 
     for module_name in sorted(module_paths):
@@ -475,38 +475,38 @@ def test_all_modules_parse_without_syntax_errors(page: 'Page', _flask_server):
         if not result.get('ok'):
             err_type = result.get('type', 'Error')
             err_msg = result.get('error', 'unknown')
-            # Пропускаем ошибки загрузки (сеть, CORS) — нас интересуют только SyntaxError
+            # Skip load errors (network, CORS) — only SyntaxError matters
             if err_type == 'SyntaxError' or 'SyntaxError' in err_msg:
                 errors_found.append(f'  {module_name}: [{err_type}] {err_msg}')
 
     assert not errors_found, (
-        'Следующие модули не парсятся браузером:\n' + '\n'.join(errors_found)
+        'The following modules do not parse in the browser:\n' + '\n'.join(errors_found)
     )
 
 
 # ---------------------------------------------------------------------------
-# Тест 6: Страница /chat требует авторизации (редирект на /login)
+# Test 6: the /chat page requires auth (redirect to /login)
 # ---------------------------------------------------------------------------
 
 def test_chat_page_requires_auth(page: 'Page', _flask_server):
-    """/chat без авторизации должен редиректить на /login или /key-login."""
+    """/chat without auth must redirect to /login or /key-login."""
     response = page.goto('/chat', wait_until='domcontentloaded')
     assert response is not None
     final_url = page.url
-    # Не авторизованный пользователь → редирект
+    # Unauthenticated user → redirect
     assert response.status < 400 or '/login' in final_url or '/key-login' in final_url, (
-        f'/chat вернул неожиданный статус {response.status}, URL: {final_url}'
+        f'/chat returned unexpected status {response.status}, URL: {final_url}'
     )
 
 
 # ---------------------------------------------------------------------------
-# Тест 7: Нет broken module imports — console.error при 404 на JS файл
+# Test 7: no broken module imports — console.error on a 404 for a JS file
 # ---------------------------------------------------------------------------
 
 def test_no_404_on_js_imports(page: 'Page', _flask_server):
     """
-    При загрузке /login не должно быть 404-ответов на JS-файлы.
-    Сломанный import → браузер не молчит, а падает с ошибкой.
+    Loading /login must produce no 404 responses for JS files.
+    A broken import → the browser does not stay silent, it raises.
     """
     failed_requests: list[str] = []
 
@@ -518,7 +518,7 @@ def test_no_404_on_js_imports(page: 'Page', _flask_server):
     page.goto('/login', wait_until='networkidle')
 
     assert not failed_requests, (
-        'JS-файлы не найдены (404):\n' + '\n'.join(failed_requests)
+        'JS files not found (404):\n' + '\n'.join(failed_requests)
     )
 
 

@@ -16,13 +16,13 @@ def _run_node_harness(source: str) -> subprocess.CompletedProcess[str]:
 
 
 def test_unsigned_messages_are_marked_unverified_when_sender_key_is_known():
-    """Политика безопасности (audit C4):
+    """Security policy (audit C4):
 
-    Сообщение без подписи всё ещё расшифровывается, но если публичный ключ
-    отправителя нам известен — оно ДОЛЖНО быть помечено как непроверенное
-    (маркер '[не проверено]'), а не молча показано как доверенное. Тампер
-    подписи по-прежнему блокирует показ. По-настоящему старые сообщения без
-    известного ключа отправителя маркером не помечаются.
+    An unsigned message still decrypts, but when the sender's public key is
+    known to us it MUST be flagged as unverified (the '[не проверено]' UI
+    marker) rather than silently displayed as trusted. A tampered signature
+    still blocks display. Genuinely old messages with no known sender key
+    are not flagged.
     """
     crypto_path = ROOT / 'static' / 'crypto.js'
     node_harness = f"""

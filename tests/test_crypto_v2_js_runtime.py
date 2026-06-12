@@ -1,11 +1,11 @@
-"""Node-харнесс тесты для crypto-v2.js (X3DH / Ed25519 / AES-GCM).
+"""Node-harness tests for crypto-v2.js (X3DH / Ed25519 / AES-GCM).
 
-Покрывает (audit H2 — ранее v3-стек был без единого теста):
-  - X3DH round-trip: initiator → responder восстанавливает plaintext;
-  - C4 для v3: неподписанный X3DH-payload помечается '[не проверено]',
-    подделанная подпись блокирует показ.
+Covers (audit H2 — previously the v3 stack had no tests at all):
+  - X3DH round-trip: initiator → responder recovers the plaintext;
+  - C4 for v3: an unsigned X3DH payload is flagged with the
+    '[не проверено]' UI marker, a forged signature blocks display.
 
-Запускается через node с экспериментальными X25519/Ed25519 в webcrypto.
+Runs via node with experimental X25519/Ed25519 in webcrypto.
 """
 from pathlib import Path
 import subprocess

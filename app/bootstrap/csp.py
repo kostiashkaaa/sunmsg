@@ -49,8 +49,8 @@ def _build_content_security_policy(
     script_nonce = f"'nonce-{csp_nonce}'" if csp_nonce else ""
     style_allow_inline = bool(app.config.get("CSP_STYLE_UNSAFE_INLINE", True))
     if style_allow_inline and is_production:
-        # В production CSP_STYLE_UNSAFE_INLINE должен быть False (ProductionConfig уже выставляет это).
-        # Если сюда попали — значит конфиг переопределён через env, логируем предупреждение.
+        # In production CSP_STYLE_UNSAFE_INLINE must be False (ProductionConfig already sets it).
+        # Reaching this point means the config was overridden via env; log a warning.
         import logging
         logging.getLogger(__name__).warning(
             "CSP: style-src 'unsafe-inline' is active in production. "

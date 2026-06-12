@@ -89,7 +89,7 @@ def is_valid_chat_id(chat_id):
 _B64_RE = re.compile(r'^[A-Za-z0-9+/\-_]+=*$')
 _CIPHERTEXT_MIN_LEN = 40   # encoded chars; anything shorter is suspicious
 
-# ── Ed25519 / X25519 ключи (crypto v2) ────────────────────────────────────────
+# ── Ed25519 / X25519 keys (crypto v2) ────────────────────────────────────────
 
 _B64U_RE = re.compile(r'^[A-Za-z0-9\-_]+$')
 
@@ -141,7 +141,7 @@ def verify_ed25519_signature(public_key_b64u: str, message: str | bytes, signatu
         return False
 
 
-# ── Валидация payload v3 (X25519/DR/MLS) ──────────────────────────────────────
+# ── v3 payload validation (X25519/DR/MLS) ──────────────────────────────────────
 
 _PROTO_VALIDATORS = {
     'x3dh': {'required': ['sender_ik', 'ephemeral_key', 'spk_id', 'ct', 'iv', 'sig']},
@@ -167,7 +167,7 @@ def is_valid_v3_payload(raw: str) -> bool:
     for field in spec['required']:
         if not payload.get(field):
             return False
-    # Проверяем размер ciphertext
+    # Check the ciphertext size
     try:
         ct_bytes = _b64u_decode(payload['ct'])
         if len(ct_bytes) < _B64U_MIN_CT_BYTES:

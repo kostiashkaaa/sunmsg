@@ -1,12 +1,12 @@
 """
 UI/CSS invariants.
 
-Гарантирует, что фиксы из аудита 2026-04-30 не разъедутся:
-  • никаких `transition: all` в CSS-файлах (ломает GPU-композитинг)
-  • каждый `height|min-height: 100vh` сопровождается парным `100dvh`
-  • motion.css содержит ключевые токены и keyframes
-  • присутствует focus-visible / overscroll-behavior / tap-target ≥ 44px
-  • safe-area-inset покрывает мобильные отступы
+Guards that the fixes from the 2026-04-30 audit do not drift:
+  • no `transition: all` in CSS files (breaks GPU compositing)
+  • every `height|min-height: 100vh` is paired with `100dvh`
+  • motion.css contains the key tokens and keyframes
+  • focus-visible / overscroll-behavior / tap-target ≥ 44px are present
+  • safe-area-inset covers mobile paddings
 """
 
 from __future__ import annotations
@@ -27,8 +27,8 @@ CSS_FILES = [
     STATIC / 'pages' / 'settings.css',
 ]
 
-# `transition: all` в комментариях допустим (есть пояснительный комментарий
-# в motion.css), но в реальных правилах — запрещён.
+# `transition: all` is allowed in comments (motion.css has an explanatory
+# one) but forbidden in actual rules.
 TRANSITION_ALL_RE = re.compile(r'^\s*transition:\s*all\b', re.MULTILINE)
 COMMENT_RE = re.compile(r'/\*.*?\*/', re.DOTALL)
 CSS_IMPORT_RE = re.compile(
@@ -63,15 +63,15 @@ def _read_css_text(path: Path, visited: set[Path] | None = None) -> str:
 
 @pytest.mark.parametrize('path', CSS_FILES, ids=lambda p: p.name)
 def test_no_transition_all(path: Path) -> None:
-    """`transition: all` запрещён — он анимирует width/height/box-shadow и
-    срывает GPU-композитинг. Используй конкретные свойства."""
+    """`transition: all` is forbidden — it animates width/height/box-shadow
+    and breaks GPU compositing. Use specific properties."""
     assert path.exists(), f'CSS file missing: {path}'
     css = _strip_comments(_read_css_text(path))
     matches = TRANSITION_ALL_RE.findall(css)
     assert not matches, (
-        f'{path.name}: найден `transition: all` — замени на конкретные '
-        f'свойства (background-color, color, transform, opacity, …). '
-        f'Найдено вхождений: {len(matches)}'
+        f'{path.name}: `transition: all` found — replace it with specific '
+        f'properties (background-color, color, transform, opacity, …). '
+        f'Occurrences: {len(matches)}'
     )
 
 
@@ -81,22 +81,22 @@ DVH_RE = re.compile(r'(height|min-height|max-height):\s*100dvh\b')
 
 @pytest.mark.parametrize('path', CSS_FILES, ids=lambda p: p.name)
 def test_vh_paired_with_dvh(path: Path) -> None:
-    """Каждое `100vh` должно иметь парный `100dvh`-фолбэк, иначе
-    на iOS/мобильных адресная строка съедает viewport."""
+    """Every `100vh` must have a paired `100dvh` fallback, otherwise the
+    address bar eats the viewport on iOS/mobile."""
     css = _strip_comments(_read_css_text(path))
     vh_count = len(VH_RE.findall(css))
     dvh_count = len(DVH_RE.findall(css))
     if vh_count == 0:
         return
     assert dvh_count >= vh_count, (
-        f'{path.name}: 100vh встречается {vh_count} раз, '
-        f'100dvh — только {dvh_count}. Каждое `100vh` должно идти в паре '
-        f'с `100dvh` для мобильных браузеров.'
+        f'{path.name}: 100vh occurs {vh_count} times, '
+        f'100dvh only {dvh_count}. Every `100vh` must be paired '
+        f'with `100dvh` for mobile browsers.'
     )
 
 
 def test_motion_tokens_present() -> None:
-    """motion.css содержит обязательные spring-токены и keyframes."""
+    """motion.css contains the required spring tokens and keyframes."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     required_tokens = [
         '--m-spring',
@@ -108,7 +108,7 @@ def test_motion_tokens_present() -> None:
         '--m-press-scale',
     ]
     for token in required_tokens:
-        assert token in css, f'motion.css: отсутствует токен {token}'
+        assert token in css, f'motion.css: missing token {token}'
 
     required_keyframes = [
         '@keyframes m-fade-in',
@@ -119,58 +119,58 @@ def test_motion_tokens_present() -> None:
         '@keyframes m-pop-overshoot',
     ]
     for kf in required_keyframes:
-        assert kf in css, f'motion.css: отсутствует {kf}'
+        assert kf in css, f'motion.css: missing {kf}'
 
 
 def test_self_message_overshoot_duration_capped() -> None:
-    """Своё сообщение не должно «затянуто» подскакивать — overshoot ≤ 280ms."""
+    """Own messages must not bounce sluggishly — overshoot ≤ 280ms."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
-    # Ищем блок .message.msg-animate-in.msg-animate-self .bubble
+    # Find the .message.msg-animate-in.msg-animate-self .bubble block
     block_re = re.compile(
         r'\.message\.msg-animate-in\.msg-animate-self\s+\.bubble\s*\{[^}]*?'
         r'animation:\s*m-bubble-in-self\s+(\d+)ms',
         re.DOTALL,
     )
     match = block_re.search(css)
-    assert match, 'motion.css: правило m-bubble-in-self для self-bubble не найдено'
+    assert match, 'motion.css: m-bubble-in-self rule for the self bubble not found'
     duration = int(match.group(1))
     assert duration <= 280, (
-        f'self-bubble overshoot = {duration}ms — слишком долго '
-        f'для частой переписки. Держи в районе 240-260ms.'
+        f'self-bubble overshoot = {duration}ms — too long for '
+        f'high-frequency messaging. Keep it around 240-260ms.'
     )
 
 
 def test_prefers_reduced_motion_present() -> None:
-    """motion.css обязан полностью гасить анимации в reduced-motion."""
+    """motion.css must fully suppress animations under reduced-motion."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     assert '@media (prefers-reduced-motion: reduce)' in css
-    # И transition-duration внутри должен быть сброшен
+    # And transition-duration inside must be reset
     rm_block = css[css.find('@media (prefers-reduced-motion: reduce)'):]
     assert 'animation-duration: 0.01ms' in rm_block
     assert 'transition-duration: 0.01ms' in rm_block
 
 
 def test_focus_visible_outline_present() -> None:
-    """Keyboard-accessibility: интерактивные элементы имеют :focus-visible."""
+    """Keyboard accessibility: interactive elements have :focus-visible."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     assert ':focus-visible' in css, (
-        'motion.css: нет правил :focus-visible — keyboard-навигация без '
-        'видимого фокуса недоступна для accessibility.'
+        'motion.css: no :focus-visible rules — keyboard navigation without '
+        'a visible focus indicator is an accessibility failure.'
     )
     assert 'outline:' in css and 'outline-offset' in css
 
 
 def test_overscroll_contain_present() -> None:
-    """Скролл-контейнеры используют overscroll-behavior: contain — не
-    ловят pull-to-refresh и не «протекают» в body."""
+    """Scroll containers use overscroll-behavior: contain — they do not
+    trigger pull-to-refresh and do not "leak" into body."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     assert 'overscroll-behavior: contain' in css
 
 
 def test_tap_target_44px_on_mobile() -> None:
-    """На мобильных интерактивные иконки ≥ 44px (Apple HIG)."""
+    """On mobile, interactive icons are ≥ 44px (Apple HIG)."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
-    # Должна быть mobile-секция с min-width/min-height: 44px на иконках
+    # A mobile section with min-width/min-height: 44px on icons must exist
     mobile_44 = re.search(
         r'@media\s*\(max-width:\s*768px\)\s*\{[^}]*\.icon-btn[^}]*?'
         r'min-(?:width|height):\s*44px',
@@ -178,46 +178,46 @@ def test_tap_target_44px_on_mobile() -> None:
         re.DOTALL,
     )
     assert mobile_44, (
-        'motion.css: для мобильных нет правила min-width/height: 44px на '
-        'иконочных кнопках — нарушение tap-target guideline.'
+        'motion.css: no min-width/height: 44px rule for icon buttons on '
+        'mobile — violates the tap-target guideline.'
     )
 
 
 def test_hover_disabled_on_touch_devices() -> None:
-    """`@media (hover: none)` отключает «залипший» hover после tap."""
+    """`@media (hover: none)` disables sticky hover after tap."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     hover_block = re.search(
         r'@media\s*\(hover:\s*none\)\s*\{(.+?)\}\s*(?=/\*|@|\Z)',
         css,
         re.DOTALL,
     )
-    assert hover_block, '@media (hover: none) не найден'
+    assert hover_block, '@media (hover: none) not found'
     body = hover_block.group(1)
-    # Должен сбрасывать transform и/или background для hover
+    # Must reset transform and/or background for hover
     assert 'transform: none' in body
     assert '.bubble:hover' in body or '.message-action:hover' in body, (
-        'hover-сброс не покрывает баблы/действия — на тач-устройствах '
-        'останется «залипший» hover-фон после tap.'
+        'hover reset does not cover bubbles/actions — touch devices would '
+        'keep a sticky hover background after tap.'
     )
 
 
 def test_safe_area_inset_used_in_chat_layout() -> None:
-    """Композер и floating-элементы учитывают env(safe-area-inset-*)."""
+    """The composer and floating elements respect env(safe-area-inset-*)."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     occurrences = css.count('env(safe-area-inset-bottom')
     assert occurrences >= 5, (
-        f'chat.css: env(safe-area-inset-bottom) встречается всего '
-        f'{occurrences} раз — мало для floating-композера и оверлеев.'
+        f'chat.css: env(safe-area-inset-bottom) occurs only '
+        f'{occurrences} times — not enough for the floating composer and overlays.'
     )
 
 
 def test_will_change_not_on_static_button_base() -> None:
-    """`will-change: transform` не должен висеть на базовых кнопочных
-    селекторах постоянно — только в :active/во время анимаций."""
+    """`will-change: transform` must not sit permanently on base button
+    selectors — only in :active/while animating."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
 
-    # Ищем блок с базовым правилом для .icon-btn, .composer-btn и т.д.
-    # (не :active) — там не должно быть will-change.
+    # Find the base rule block for .icon-btn, .composer-btn, etc.
+    # (not :active) — it must not contain will-change.
     block_re = re.compile(
         r'(\.icon-btn,\s*\n\s*\.composer-btn,[^{]*?)\{([^}]*)\}',
         re.DOTALL,
@@ -228,34 +228,34 @@ def test_will_change_not_on_static_button_base() -> None:
         if ':active' in selector or ':hover' in selector:
             continue
         assert 'will-change' not in body, (
-            'will-change: transform висит на базовом селекторе кнопок — '
-            'это создаёт постоянные compositor-layer для каждой кнопки. '
-            'Перенеси в :active.'
+            'will-change: transform sits on the base button selector — '
+            'this creates a permanent compositor layer for every button. '
+            'Move it to :active.'
         )
 
 
 def test_will_change_active_present() -> None:
-    """При этом will-change ДОЛЖЕН быть на :active — иначе теряется
-    GPU-ускорение для tactile press-эффекта."""
+    """will-change MUST however be present on :active — otherwise the
+    tactile press effect loses GPU acceleration."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
-    # Должен быть блок с :active селекторами и will-change: transform
+    # A block with :active selectors and will-change: transform must exist
     active_with_wc = re.search(
         r'\.icon-btn:active[^{]*?\{[^}]*will-change:\s*transform',
         css,
         re.DOTALL,
     )
     assert active_with_wc, (
-        'motion.css: will-change: transform отсутствует на :active-блоке '
-        'кнопок — пропадёт GPU-ускорение press-анимации.'
+        'motion.css: will-change: transform missing on the :active button '
+        'block — the press animation loses GPU acceleration.'
     )
 
 
 def test_avatar_size_tokens_present() -> None:
-    """В :root должны быть унифицированные размеры аватаров."""
+    """Unified avatar sizes must be defined in :root."""
     css = (STATIC / 'style.css').read_text(encoding='utf-8')
     for token in ('--avatar-xs', '--avatar-sm', '--avatar-md',
                   '--avatar-lg', '--avatar-xl'):
-        assert token in css, f'style.css :root: отсутствует токен {token}'
+        assert token in css, f'style.css :root: missing token {token}'
 
 
 def test_chat_toasts_do_not_stretch_to_container_width() -> None:
@@ -277,123 +277,123 @@ def test_chat_toasts_do_not_stretch_to_container_width() -> None:
 
 
 def test_header_height_token_present() -> None:
-    """`--header-h` обеспечивает выравнивание .chat-header и
-    .sidebar-header по горизонтальной сетке messenger-grid."""
+    """`--header-h` keeps .chat-header and .sidebar-header aligned on
+    the horizontal messenger-grid."""
     style = (STATIC / 'style.css').read_text(encoding='utf-8')
     chat = _read_css_text(STATIC / 'pages' / 'chat.css')
-    assert '--header-h' in style, 'style.css :root: нет токена --header-h'
-    # И обе шапки используют его как min-height
+    assert '--header-h' in style, 'style.css :root: missing --header-h token'
+    # And both headers use it as min-height
     assert re.search(
         r'\.sidebar-header\s*\{[^}]*min-height:\s*var\(--header-h\)',
         style, re.DOTALL,
-    ), '.sidebar-header не привязан к --header-h'
+    ), '.sidebar-header is not bound to --header-h'
     assert re.search(
         r'\.chat-header\s*\{[^}]*min-height:\s*var\(--header-h\)',
         chat, re.DOTALL,
-    ), '.chat-header не привязан к --header-h'
+    ), '.chat-header is not bound to --header-h'
 
 
 def test_side_resizer_hit_area_at_least_6px() -> None:
-    """Drag-handle должен иметь hit-area ≥ 6px — иначе попасть курсором
-    тяжело. Видимая полоса может оставаться тонкой."""
+    """The drag handle must have a hit area ≥ 6px — otherwise it is hard
+    to grab with the cursor. The visible strip may stay thin."""
     css = (STATIC / 'style.css').read_text(encoding='utf-8')
     block = re.search(
         r'\.side-resizer\s*\{([^}]*)\}',
         css, re.DOTALL,
     )
-    assert block, '.side-resizer не найден в style.css'
+    assert block, '.side-resizer not found in style.css'
     width_match = re.search(r'width:\s*(\d+)px', block.group(1))
-    assert width_match, '.side-resizer: width не задан в px'
+    assert width_match, '.side-resizer: width not set in px'
     width_px = int(width_match.group(1))
     assert width_px >= 6, (
-        f'.side-resizer width = {width_px}px — слишком тонкий hit-area, '
-        f'попасть курсором при resize неудобно. Минимум 6-8px.'
+        f'.side-resizer width = {width_px}px — hit area too thin, '
+        f'grabbing it for resize is awkward. Minimum 6-8px.'
     )
     assert 'cursor: col-resize' in block.group(1), (
-        '.side-resizer: должен иметь cursor: col-resize'
+        '.side-resizer: must have cursor: col-resize'
     )
 
 
 def test_keyboard_shortcuts_module_exists() -> None:
-    """Модуль keyboard-shortcuts.js существует и экспортирует init."""
+    """The keyboard-shortcuts.js module exists and exports init."""
     path = STATIC / 'modules' / 'keyboard-shortcuts.js'
-    assert path.exists(), 'modules/keyboard-shortcuts.js должен существовать'
+    assert path.exists(), 'modules/keyboard-shortcuts.js must exist'
     src = path.read_text(encoding='utf-8')
     assert 'export function initKeyboardShortcuts' in src
-    # И покрывает три ключевые комбинации:
-    assert 'Escape' in src, 'shortcut: Escape должен обрабатываться'
+    # And covers the three key combinations:
+    assert 'Escape' in src, 'shortcut: Escape must be handled'
     assert 'ArrowUp' in src and 'ArrowDown' in src, (
-        'shortcuts: Ctrl+ArrowUp/Down — переключение чатов'
+        'shortcuts: Ctrl+ArrowUp/Down — chat switching'
     )
-    # Ctrl+F — focus поиска (учитываем русскую раскладку 'а')
+    # Ctrl+F — focus search (the Russian layout 'а' is also handled)
     assert (
         re.search(r"key\s*===\s*['\"]f['\"]", src)
         or re.search(r"key\s*===\s*['\"]F['\"]", src)
-    ), 'shortcut Ctrl+F должен обрабатываться'
+    ), 'shortcut Ctrl+F must be handled'
 
 
 def test_keyboard_shortcuts_wired_in_chatjs() -> None:
-    """Шорткаты подключаются к bootstrap'у chat.js."""
+    """Shortcuts are wired into the chat.js bootstrap."""
     src = (STATIC / 'chat-runtime.js').read_text(encoding='utf-8')
     assert 'keyboard-shortcuts.js' in src, (
-        'chat-runtime.js не импортирует модуль keyboard-shortcuts.js'
+        'chat-runtime.js does not import keyboard-shortcuts.js'
     )
     assert 'initKeyboardShortcuts' in src
 
 
 def test_bubble_transition_excludes_box_shadow() -> None:
-    """`.message .bubble` НЕ должен анимировать box-shadow — это
-    hot-path при скролле истории."""
+    """`.message .bubble` must NOT animate box-shadow — this is a hot
+    path when scrolling history."""
     css = (STATIC / 'motion.css').read_text(encoding='utf-8')
     block = re.search(
         r'\.message\s+\.bubble\s*\{([^}]*?transition:[^;]+;)',
         css, re.DOTALL,
     )
-    assert block, '.message .bubble transition не найден'
+    assert block, '.message .bubble transition not found'
     transition_value = block.group(1)
     assert 'box-shadow' not in transition_value, (
-        'motion.css: .message .bubble анимирует box-shadow — '
-        'удали его из transition (это дорого при скролле).'
+        'motion.css: .message .bubble animates box-shadow — '
+        'remove it from the transition (expensive while scrolling).'
     )
 
 
 def test_mobile_chat_reveal_animation_present() -> None:
-    """При открытии чата на мобильном чат заезжает справа
-    (mobileChatRevealIn), а sidebar плавно уезжает влево
-    (mobileSidebarHideOut) — никаких мгновенных display:none без анимации."""
+    """Opening a chat on mobile slides it in from the right
+    (mobileChatRevealIn) while the sidebar smoothly leaves to the left
+    (mobileSidebarHideOut) — no instant display:none without animation."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     for kf in ('@keyframes mobileChatRevealIn',
                '@keyframes mobileChatCloseOut',
                '@keyframes mobileSidebarReveal',
                '@keyframes mobileSidebarHideOut'):
-        assert kf in css, f'chat.css: отсутствует {kf}'
+        assert kf in css, f'chat.css: missing {kf}'
 
     assert '.chat-area.mobile-open.mobile-revealing' in css, (
-        'chat.css: нет правила .mobile-revealing для входной анимации чата'
+        'chat.css: no .mobile-revealing rule for the chat entry animation'
     )
     assert '.sidebar.mobile-hiding' in css, (
-        'chat.css: нет правила .mobile-hiding для уходящего sidebar'
+        'chat.css: no .mobile-hiding rule for the departing sidebar'
     )
     reveal_kf = re.search(r'@keyframes\s+mobileChatRevealIn\s*\{([\s\S]+?)\n\s*\}', css)
-    assert reveal_kf, 'chat.css: @keyframes mobileChatRevealIn не найден'
+    assert reveal_kf, 'chat.css: @keyframes mobileChatRevealIn not found'
     assert 'transform: translateX(100%)' in reveal_kf.group(1), (
-        'mobileChatRevealIn должен начинаться справа, иначе mobile-open сразу показывает chat-area без slide-in'
+        'mobileChatRevealIn must start from the right, otherwise mobile-open shows the chat-area without a slide-in'
     )
 
-    # Длительности reveal/hide должны быть tokenized (или legacy-числом в 240-380ms).
+    # Reveal/hide durations must be tokenized (or a legacy number within 240-380ms).
     for anim_name in ('mobileChatRevealIn', 'mobileSidebarHideOut',
                       'mobileSidebarReveal', 'mobileChatCloseOut'):
         anim_decls = re.findall(
             rf'animation:\s*{anim_name}\s+[^;]+;',
             css,
         )
-        assert anim_decls, f'chat.css: длительность {anim_name} не найдена'
+        assert anim_decls, f'chat.css: {anim_name} duration not found'
         if any('var(--dur-' in decl for decl in anim_decls):
             assert any(
                 ('var(--dur-medium)' in decl) or ('var(--dur-slow)' in decl)
                 for decl in anim_decls
             ), (
-                f'{anim_name}: используется token-duration, но не ожидаемый '
+                f'{anim_name}: token duration is used but not the expected '
                 f'`var(--dur-medium|--dur-slow)`'
             )
             continue
@@ -402,37 +402,37 @@ def test_mobile_chat_reveal_animation_present() -> None:
             rf'animation:\s*{anim_name}\s+0?\.(\d+)s',
             css,
         )
-        assert match, f'chat.css: длительность {anim_name} не найдена'
+        assert match, f'chat.css: {anim_name} duration not found'
         ms = int(match.group(1)[:3].ljust(3, '0'))
         assert 240 <= ms <= 380, (
-            f'{anim_name} = {ms}ms — выходит за комфортный диапазон 240-380ms'
+            f'{anim_name} = {ms}ms — outside the comfortable 240-380ms range'
         )
 
 
 def test_mobile_animations_use_tweb_standard_easing() -> None:
-    """Mobile sidebar/chat анимации должны использовать единый tweb-style easing
-    через токен `var(--ease-quick)`.
-    Проверяем @keyframes-привязки в анимациях, а не блоки правил
-    (reduced-motion override может перезаписать без cubic-bezier)."""
+    """Mobile sidebar/chat animations must use the shared tweb-style easing
+    via the `var(--ease-quick)` token.
+    We check the animation declarations rather than rule blocks
+    (the reduced-motion override may rewrite them without a cubic-bezier)."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     easing_token = 'var(--ease-quick)'
     for anim_name in ('mobileChatRevealIn', 'mobileSidebarHideOut',
                       'mobileSidebarReveal', 'mobileChatCloseOut'):
-        # Ищем все вхождения `animation: <name> ...;` и хотя бы одно должно
-        # содержать tweb-token (reduced-motion блок задаёт `animation: none`).
+        # Find every `animation: <name> ...;` declaration — at least one must
+        # contain the tweb token (the reduced-motion block sets `animation: none`).
         anim_decls = re.findall(
             rf'animation:\s*{anim_name}\s+[^;]+;',
             css,
         )
-        assert anim_decls, f'chat.css: animation: {anim_name} не найден'
+        assert anim_decls, f'chat.css: animation: {anim_name} not found'
         assert any(easing_token in decl for decl in anim_decls), (
-            f'{anim_name}: ни одно объявление animation не использует '
-            f'tweb easing token {easing_token}'
+            f'{anim_name}: no animation declaration uses '
+            f'the tweb easing token {easing_token}'
         )
 
 
 def test_mobile_animations_reduced_motion_disabled() -> None:
-    """Все mobile-анимации должны выключаться в prefers-reduced-motion."""
+    """All mobile animations must be disabled under prefers-reduced-motion."""
     css = _read_css_text(STATIC / 'pages' / 'chat.css')
     rm_blocks = re.findall(
         r'@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{(.+?)\}\s*\}',
@@ -442,32 +442,32 @@ def test_mobile_animations_reduced_motion_disabled() -> None:
     for klass in ('mobile-revealing', 'mobile-hiding',
                   'mobile-returning', 'mobile-closing'):
         assert klass in combined, (
-            f'prefers-reduced-motion: класс {klass} не выключается'
+            f'prefers-reduced-motion: class {klass} is not disabled'
         )
 
 
 def test_open_chat_uses_animated_path() -> None:
-    """`openChat()` в mobile thread shell должен использовать новые классы
-    mobile-revealing/mobile-hiding и не делать display:none мгновенно."""
+    """`openChat()` in the mobile thread shell must use the new
+    mobile-revealing/mobile-hiding classes and never apply display:none instantly."""
     src = (STATIC / 'chat' / 'thread-shell.js').read_text(encoding='utf-8')
-    # Берём первый openChat функцию
+    # Take the first openChat function
     func = re.search(
         r'function openChat\(\{ animated = true \} = \{\}\)\s*\{([\s\S]+?)\n    \}\n',
         src,
     )
-    assert func, 'chat/thread-shell.js: функция openChat() не найдена'
+    assert func, 'chat/thread-shell.js: openChat() function not found'
     body = func.group(1)
     assert '!animated || reduceMotion' in body, (
-        'openChat: автоматическое восстановление должно уметь открывать mobile chat без reveal-сдвига'
+        'openChat: automatic restore must be able to open the mobile chat without the reveal slide'
     )
     assert 'mobile-revealing' in body, (
-        'openChat: не выставляет .mobile-revealing — нет анимации входа'
+        'openChat: does not set .mobile-revealing — no entry animation'
     )
     assert 'mobile-hiding' in body, (
-        'openChat: не выставляет .mobile-hiding — sidebar исчезает резко'
+        'openChat: does not set .mobile-hiding — the sidebar disappears abruptly'
     )
     assert 'prefersReducedMotion' in body, (
-        'openChat: не учитывает prefers-reduced-motion'
+        'openChat: does not respect prefers-reduced-motion'
     )
 
 
@@ -580,8 +580,8 @@ def test_icon_button_press_keeps_glyph_centered() -> None:
 
 
 def test_bubble_no_blur_box_shadow_in_style_css() -> None:
-    """У `.message.self .bubble` и `.message.other .bubble` не должно
-    быть тяжёлых blur-теней (большой 3-й параметр)."""
+    """`.message.self .bubble` and `.message.other .bubble` must not have
+    heavy blur shadows (large third parameter)."""
     css = (STATIC / 'style.css').read_text(encoding='utf-8')
     self_block = re.search(
         r'\.message\.self\s+\.bubble\s*\{([^}]*)\}',
@@ -589,13 +589,13 @@ def test_bubble_no_blur_box_shadow_in_style_css() -> None:
     )
     assert self_block
     body = self_block.group(1)
-    # box-shadow должна быть либо none, либо отсутствовать.
+    # box-shadow must be either none or absent.
     bs = re.search(r'box-shadow:\s*([^;]+);', body)
     if bs:
         value = bs.group(1).strip().lower()
         assert 'none' in value, (
-            f'.message.self .bubble имеет box-shadow="{value}" — '
-            f'для hot-path bubble допустим только none.'
+            f'.message.self .bubble has box-shadow="{value}" — '
+            f'only none is allowed for the hot-path bubble.'
         )
 
 def test_chat_messages_clips_horizontal_overflow() -> None:

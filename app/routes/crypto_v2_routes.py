@@ -2,20 +2,20 @@
 Flask blueprint: /api/crypto — X25519/Ed25519/DR/MLS key management.
 
 Endpoints:
-  POST /api/crypto/keys              — публикация X25519 + Ed25519 ключей пользователя
-  GET  /api/crypto/prekey-bundle/<user_id> — preview prekey bundle без claim
-  POST /api/crypto/prekey-bundle/<user_id>/claim — claim prekey bundle для X3DH
-  POST /api/crypto/prekeys/signed    — загрузка signed prekey
-  POST /api/crypto/prekeys/one-time  — загрузка one-time prekeys (batch)
-  GET  /api/crypto/dr-session/<chat_id>   — получение DR состояния сессии
-  POST /api/crypto/dr-session/<chat_id>   — сохранение / обновление DR состояния
-  POST /api/crypto/mls/key-packages  — публикация MLS KeyPackage
-  GET  /api/crypto/mls/key-packages/<user_id> — preview KeyPackage без claim
-  POST /api/crypto/mls/key-packages/<user_id>/claim — claim KeyPackage пользователя
-  POST /api/crypto/mls/group/<chat_id>/commit — применить MLS Commit
-  POST /api/crypto/mls/group/<chat_id>/welcome — сохранить Welcome для участника
-  GET  /api/crypto/mls/pending/<chat_id>  — preview pending MLS сообщений
-  POST /api/crypto/mls/pending/<chat_id>/claim — получить и отметить pending MLS сообщения
+  POST /api/crypto/keys              — publish the user's X25519 + Ed25519 keys
+  GET  /api/crypto/prekey-bundle/<user_id> — preview a prekey bundle without claiming
+  POST /api/crypto/prekey-bundle/<user_id>/claim — claim a prekey bundle for X3DH
+  POST /api/crypto/prekeys/signed    — upload a signed prekey
+  POST /api/crypto/prekeys/one-time  — upload one-time prekeys (batch)
+  GET  /api/crypto/dr-session/<chat_id>   — fetch DR session state
+  POST /api/crypto/dr-session/<chat_id>   — save / update DR session state
+  POST /api/crypto/mls/key-packages  — publish an MLS KeyPackage
+  GET  /api/crypto/mls/key-packages/<user_id> — preview a KeyPackage without claiming
+  POST /api/crypto/mls/key-packages/<user_id>/claim — claim a user's KeyPackage
+  POST /api/crypto/mls/group/<chat_id>/commit — apply an MLS Commit
+  POST /api/crypto/mls/group/<chat_id>/welcome — store a Welcome for a member
+  GET  /api/crypto/mls/pending/<chat_id>  — preview pending MLS messages
+  POST /api/crypto/mls/pending/<chat_id>/claim — fetch and mark pending MLS messages
 """
 
 from __future__ import annotations
@@ -81,12 +81,12 @@ def _require_group_member_ids(conn, chat_id: str, uid: int):
     return member_ids, None
 
 
-# ── Публикация ключей пользователя ────────────────────────────────────────────
+# ── Publish user keys ────────────────────────────────────────────
 
 @crypto_v2_bp.route('/keys', methods=['POST'])
 @limiter.limit('20 per minute')
 def publish_identity_keys():
-    """Сохраняет X25519 + Ed25519 публичные ключи пользователя."""
+    """Store the user's X25519 + Ed25519 public keys."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -104,7 +104,7 @@ def publish_identity_keys():
     if not challenge or not signature:
         return jsonify({'error': 'challenge_required'}), 400
 
-    # Верификация: пользователь подписывает challenge своим новым Ed25519 ключом
+    # Verification: the user signs a challenge with their new Ed25519 key
     if not verify_ed25519_signature(ed25519_pub, challenge, signature):
         return jsonify({'error': 'signature_invalid'}), 401
 
@@ -149,14 +149,14 @@ def publish_identity_keys():
 @crypto_v2_bp.route('/prekey-bundle/<int:peer_user_id>', methods=['GET'])
 @limiter.limit('60 per minute')
 def get_prekey_bundle(peer_user_id: int):
-    """Возвращает prekey bundle preview без погашения one-time prekey."""
+    """Return a prekey bundle preview without consuming a one-time prekey."""
     return _prekey_bundle_response(peer_user_id, claim_one_time=False)
 
 
 @crypto_v2_bp.route('/prekey-bundle/<int:peer_user_id>/claim', methods=['POST'])
 @limiter.limit('60 per minute')
 def claim_prekey_bundle(peer_user_id: int):
-    """Возвращает prekey bundle и погашает один one-time prekey."""
+    """Return a prekey bundle and consume one one-time prekey."""
     return _prekey_bundle_response(peer_user_id, claim_one_time=True)
 
 
@@ -175,7 +175,7 @@ def _prekey_bundle_response(peer_user_id: int, *, claim_one_time: bool):
         if not user or not user['x25519_public_key']:
             return jsonify({'error': 'user_not_found_or_no_v3_keys'}), 404
 
-        # Последний signed prekey
+        # The most recent signed prekey
         spk_row = conn.execute(
             '''
             SELECT prekey_id, public_key, signature
@@ -236,7 +236,7 @@ def _prekey_bundle_response(peer_user_id: int, *, claim_one_time: bool):
 @crypto_v2_bp.route('/prekeys/signed', methods=['POST'])
 @limiter.limit('10 per minute')
 def upload_signed_prekey():
-    """Загружает новый signed prekey пользователя."""
+    """Upload the user's new signed prekey."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -278,7 +278,7 @@ def upload_signed_prekey():
 @crypto_v2_bp.route('/prekeys/one-time', methods=['POST'])
 @limiter.limit('10 per minute')
 def upload_one_time_prekeys():
-    """Загружает пачку one-time prekeys."""
+    """Upload a batch of one-time prekeys."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -316,12 +316,12 @@ def upload_one_time_prekeys():
     return jsonify({'ok': True})
 
 
-# ── Double Ratchet сессии ─────────────────────────────────────────────────────
+# ── Double Ratchet sessions ─────────────────────────────────────────────────────
 
 @crypto_v2_bp.route('/dr-session/<chat_id>', methods=['GET'])
 @limiter.limit('120 per minute')
 def get_dr_session(chat_id: str):
-    """Возвращает сериализованное DR состояние для данного чата."""
+    """Return the serialized DR state for the given chat."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -356,7 +356,7 @@ def get_dr_session(chat_id: str):
 @crypto_v2_bp.route('/dr-session/<chat_id>', methods=['POST'])
 @limiter.limit('120 per minute')
 def save_dr_session(chat_id: str):
-    """Сохраняет / обновляет DR состояние."""
+    """Save / update the DR state."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -398,7 +398,7 @@ def save_dr_session(chat_id: str):
 @crypto_v2_bp.route('/mls/key-packages', methods=['POST'])
 @limiter.limit('10 per minute')
 def upload_mls_key_package():
-    """Публикует MLS KeyPackage пользователя."""
+    """Publish the user's MLS KeyPackage."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -434,14 +434,14 @@ def upload_mls_key_package():
 @crypto_v2_bp.route('/mls/key-packages/<int:peer_user_id>', methods=['GET'])
 @limiter.limit('60 per minute')
 def get_mls_key_package(peer_user_id: int):
-    """Возвращает preview незаявленного MLS KeyPackage без погашения."""
+    """Return a preview of an unclaimed MLS KeyPackage without consuming it."""
     return _mls_key_package_response(peer_user_id, claim_package=False)
 
 
 @crypto_v2_bp.route('/mls/key-packages/<int:peer_user_id>/claim', methods=['POST'])
 @limiter.limit('60 per minute')
 def claim_mls_key_package(peer_user_id: int):
-    """Возвращает и погашает один MLS KeyPackage пользователя."""
+    """Return and consume one of the user's MLS KeyPackages."""
     return _mls_key_package_response(peer_user_id, claim_package=True)
 
 
@@ -485,12 +485,12 @@ def _mls_key_package_response(peer_user_id: int, *, claim_package: bool):
         conn.close()
 
 
-# ── MLS группа: Welcome / Commit ─────────────────────────────────────────────
+# ── MLS group: Welcome / Commit ─────────────────────────────────────────────
 
 @crypto_v2_bp.route('/mls/group/<chat_id>/welcome', methods=['POST'])
 @limiter.limit('30 per minute')
 def store_mls_welcome(chat_id: str):
-    """Сохраняет Welcome сообщение для нового участника группы."""
+    """Store a Welcome message for a new group member."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -533,7 +533,7 @@ def store_mls_welcome(chat_id: str):
 @crypto_v2_bp.route('/mls/group/<chat_id>/commit', methods=['POST'])
 @limiter.limit('30 per minute')
 def store_mls_commit(chat_id: str):
-    """Сохраняет Commit для всех участников группы."""
+    """Store a Commit for all group members."""
     uid = _require_auth()
     if not isinstance(uid, int):
         return uid
@@ -588,14 +588,14 @@ def store_mls_commit(chat_id: str):
 @crypto_v2_bp.route('/mls/pending/<chat_id>', methods=['GET'])
 @limiter.limit('120 per minute')
 def get_mls_pending(chat_id: str):
-    """Возвращает pending MLS сообщения без отметки доставки."""
+    """Return pending MLS messages without marking them delivered."""
     return _mls_pending_response(chat_id, mark_delivered=False)
 
 
 @crypto_v2_bp.route('/mls/pending/<chat_id>/claim', methods=['POST'])
 @limiter.limit('120 per minute')
 def claim_mls_pending(chat_id: str):
-    """Возвращает pending MLS сообщения и отмечает их доставленными."""
+    """Return pending MLS messages and mark them delivered."""
     return _mls_pending_response(chat_id, mark_delivered=True)
 
 

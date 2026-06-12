@@ -173,9 +173,9 @@ def register_chat_group_membership_routes(  # noqa: C901,PLR0915
                 ).fetchone()
                 owners_count = int(owners_row['owners_count'] or 0) if owners_row else 0
 
-                # Если уходящий — единственный owner, нужно либо передать
-                # ownership наследнику (admin → moderator → member, по
-                # joined_at ASC), либо распустить группу, если он один.
+                # If the leaving member is the only owner, we must either hand
+                # ownership to a successor (admin → moderator → member, by
+                # joined_at ASC) or dissolve the group if they are the last member.
                 if owners_count <= 1:
                     members_total_row = conn.execute(
                         'SELECT COUNT(*) AS members_count FROM chat_members WHERE chat_id = ?',
@@ -184,7 +184,7 @@ def register_chat_group_membership_routes(  # noqa: C901,PLR0915
                     members_total = int(members_total_row['members_count'] or 0) if members_total_row else 0
 
                     if members_total <= 1:
-                        # Owner один в группе — распускаем чат целиком.
+                        # The owner is alone in the group — dissolve the chat entirely.
                         member_pubkeys = [
                             str(row['public_key'] or '')
                             for row in list_chat_member_public_keys(conn, chat_id)
@@ -208,8 +208,8 @@ def register_chat_group_membership_routes(  # noqa: C901,PLR0915
                             'group_disbanded': True,
                         }), 200
 
-                    # Иначе — выбираем преемника по приоритету ролей,
-                    # внутри роли — самый «давний» участник.
+                    # Otherwise pick a successor by role priority,
+                    # and within a role, the longest-standing member.
                     successor_row = conn.execute(
                         '''
                         SELECT user_id
