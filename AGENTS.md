@@ -34,7 +34,7 @@ python manage.py pip-audit               # Audit production dependencies
 ```
 
 ### Pytest Configuration
-- Config: `pytest.ini` — tests live in `tests/`, flags: `-ra -p no:asyncio -p no:anyio`
+- Config: `pyproject.toml` (`[tool.pytest.ini_options]`) — tests live in `tests/`, flags: `-ra -p no:asyncio -p no:anyio`
 - Test DB setup: `tests/_pg_test_db.py`, fixtures in `tests/conftest.py`
 
 ## Architecture

@@ -28,7 +28,7 @@ TEXT_FILENAMES = {
     '.env',
     '.env.example',
     '.gitignore',
-    'pytest.ini',
+    'pyproject.toml',
 }
 
 EXCLUDED_DIR_NAMES = {

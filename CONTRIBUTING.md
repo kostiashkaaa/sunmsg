@@ -79,7 +79,7 @@ pytest -q tests/test_auth_http.py   # a single file, while iterating
 ruff check .               # lint
 ```
 
-- Tests live in `tests/`; configuration is in `pytest.ini`.
+- Tests live in `tests/`; configuration is in `pyproject.toml` (`[tool.pytest.ini_options]`).
 - The test database is PostgreSQL — setup lives in `tests/_pg_test_db.py`, and
   fixtures in `tests/conftest.py`.
 - A `.pre-commit-config.yaml` is provided; install it with `pre-commit install` to
