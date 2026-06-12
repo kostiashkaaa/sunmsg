@@ -1,6 +1,6 @@
 // Visual media metadata enrichment: probes width/height for image/video
-// payloads that arrived без preview_*-полей, чтобы рендер мог поставить
-// правильный aspect-ratio до загрузки самого ресурса.
+// payloads that arrived without preview_* fields so the renderer can set
+// the right aspect ratio before the resource itself loads.
 
 import { sanitizeFileUri, parseSunFilePayload } from './utils.js';
 import { mapWithConcurrency } from './chat-history-runtime.js';

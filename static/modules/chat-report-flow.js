@@ -1,6 +1,6 @@
-// Report flow: модалка отправки жалобы на сообщение/пользователя.
-// Включает поллинг статуса и обработку ответов API. Вынесено из chat.js
-// без изменения поведения.
+// Report flow: the modal for reporting a message/user.
+// Includes status polling and API response handling. Extracted from chat.js
+// with no behavior change.
 
 function waitMs(durationMs) {
     return new Promise((resolve) => {

@@ -163,8 +163,8 @@
 
 
 
-        /* Сайдбар во время открытого overlay — скрываем у tabs визуально, чтобы
-           overlay сидел плотно под top-card. Top-card остаётся: поле поиска там. */
+        /* Sidebar while the overlay is open — visually hide the tabs so the
+           overlay sits snugly under the top-card. The top-card stays: the search field lives there. */
         .sidebar.has-search-overlay .sidebar-tabs {
             visibility: hidden;
         }

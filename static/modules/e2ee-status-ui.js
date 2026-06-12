@@ -1,10 +1,10 @@
 /**
- * E2EE Status UI — бейдж в заголовке чата + диалог верификации ключей.
+ * E2EE Status UI — the chat header badge + key verification dialog.
  *
- * Публичный API: window.e2eeStatusUI
+ * Public API: window.e2eeStatusUI
  *   .setStatus(proto)   — 'dr' | 'mls' | 'x3dh' | 'legacy' | 'downgraded' | 'none' | null
- *   .setKeys(myEd, peerEd, peerName) — обновить отпечатки в диалоге верификации
- *   .hide()             — скрыть бейдж (при переключении чата без v2)
+ *   .setKeys(myEd, peerEd, peerName) — update fingerprints in the verification dialog
+ *   .hide()             — hide the badge (when switching to a chat without v2)
  */
 
 'use strict';
@@ -21,9 +21,9 @@
     const peerLabel  = document.getElementById('e2eePeerFingerprintLabel');
     const protoText  = document.getElementById('e2eeProtoText');
 
-    if (!badge) return; // шаблон не загружен
+    if (!badge) return; // template not loaded
 
-    // ── Описания протоколов ──────────────────────────────────────────────────
+    // ── Protocol descriptions ──────────────────────────────────────────────────
 
     const PROTO_META = {
         dr: {
@@ -70,11 +70,11 @@
         },
     };
 
-    // ── Утилиты ──────────────────────────────────────────────────────────────
+    // ── Utilities ──────────────────────────────────────────────────────────────
 
     function _formatFingerprint(b64u) {
         if (!b64u) return '<em class="e2ee-status-muted">недоступен</em>';
-        // SHA-256 hex отпечаток из raw байт ключа
+        // SHA-256 hex fingerprint from raw key bytes
         return b64u
             .replace(/[^A-Za-z0-9_-]/g, '')
             .slice(0, 64)
@@ -98,7 +98,7 @@
         badge.classList.remove('e2ee-badge--legacy', 'e2ee-badge--none');
     }
 
-    // ── Управление бейджем ───────────────────────────────────────────────────
+    // ── Badge management ───────────────────────────────────────────────────
 
     let _currentProto = null;
 
@@ -122,7 +122,7 @@
         badge.title = meta.title;
         badge.setAttribute('aria-label', `E2EE: ${meta.label}. ${meta.title}`);
 
-        // Обновить иконку
+        // Update the icon
         const use = badge.querySelector('.e2ee-badge__icon use');
         if (use) use.setAttribute('href', meta.icon);
     }
@@ -132,7 +132,7 @@
         _currentProto = null;
     }
 
-    // ── Диалог верификации ────────────────────────────────────────────────────
+    // ── Verification dialog ────────────────────────────────────────────────────
 
     let _myEd   = null;
     let _peerEd = null;
@@ -152,7 +152,7 @@
     async function _fingerprintForProto(key) {
         if (!key) return null;
         if (_isLegacy) {
-            // RSA public key — хэшируем как строку UTF-8
+            // RSA public key — hash as a UTF-8 string
             try {
                 const enc = new TextEncoder().encode(key.trim());
                 const hash = await crypto.subtle.digest('SHA-256', enc);
@@ -187,7 +187,7 @@
         modal?.close?.() ?? modal?.removeAttribute('open');
     }
 
-    // ── Обработчики событий ───────────────────────────────────────────────────
+    // ── Event handlers ───────────────────────────────────────────────────
 
     badge.addEventListener('click', e => {
         e.stopPropagation();

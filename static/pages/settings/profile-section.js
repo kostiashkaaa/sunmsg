@@ -77,7 +77,7 @@ export function initProfileSection({
         uploadAvatarBlob: upload.uploadAvatarBlob,
     });
 
-    // Клик по фото профиля открывает полноэкранный предпросмотр (как в мессенджере).
+    // Clicking the profile photo opens a fullscreen preview (messenger-style).
     initAvatarLightbox([avatarPreviewEl, settingsNavAvatarPreviewEl]);
 
     return {

@@ -387,8 +387,8 @@ export function initChatMediaRuntime(deps = {}) {
     function normalizeAudioVolume(value) {
         const numeric = Number(value);
         if (!Number.isFinite(numeric)) return 1;
-        // Не позволяем «случайному» 0 (слайдер мог уйти в 0 от тапа промазав)
-        // тихо отключать звук во всех будущих сессиях. Минимум 0.05 — слышно.
+        // Do not let an "accidental" 0 (the slider may hit 0 from a stray tap)
+        // silently mute all future sessions. Minimum 0.05 — audible.
         if (numeric < 0.05) return 1;
         return Math.max(0, Math.min(1, numeric));
     }
@@ -567,16 +567,16 @@ export function initChatMediaRuntime(deps = {}) {
         if (!voicePlaybackBar) return;
         const currentlyVisible = !voicePlaybackBar.classList.contains('voice-playback-bar--hidden');
         if (currentlyVisible === isVisible) return;
-        // Сначала меняем visibility, чтобы offsetHeight корректно считался
-        // (у скрытого через --hidden класса visibility:hidden и высота 0).
+        // Change visibility first so offsetHeight is computed correctly
+        // (an element hidden via --hidden has visibility:hidden and zero height).
         voicePlaybackBar.classList.toggle('voice-playback-bar--hidden', !isVisible);
         voicePlaybackBar.setAttribute('aria-hidden', isVisible ? 'false' : 'true');
         if (chatArea) {
-            // Читаем высоту уже видимого бара — иначе класс
-            // chat-area--voice-playback-active не применится и шапка не сдвинется.
+            // Read the height of the already-visible bar — otherwise the
+            // chat-area--voice-playback-active class won't apply and the header won't shift.
             const measuredHeight = isVisible ? Math.ceil(voicePlaybackBar.offsetHeight || 0) : 0;
-            // На случай если высота ещё 0 (первый кадр) — фолбэк ~64px,
-            // потом скорректируем после следующего frame.
+            // In case the height is still 0 (first frame) — fall back to ~64px,
+            // then correct it after the next frame.
             const nextOffset = isVisible ? (measuredHeight || 64) : 0;
             chatArea.style.setProperty('--voice-playback-offset', `${nextOffset}px`);
             chatArea.classList.toggle('chat-area--voice-playback-active', isVisible);
@@ -940,7 +940,7 @@ export function initChatMediaRuntime(deps = {}) {
         if (knownDuration > 0) {
             try {
                 audio.currentTime = (percent / 100) * knownDuration;
-                // Сбрасываем базу интерполяции, чтобы прогресс не «дёрнулся» назад
+                // Reset the interpolation base so progress does not jerk backwards
                 if (typeof captureAudioInterpolationBase === 'function') {
                     captureAudioInterpolationBase(audio);
                 }
@@ -1036,12 +1036,12 @@ export function initChatMediaRuntime(deps = {}) {
         }
     }
 
-    // Лёгкий тик для прогресса во время воспроизведения: пишем ТОЛЬКО
-    // две CSS-переменные. Никаких setAttribute/classList/textContent.
-    // Используем интерполяцию: audio.currentTime на iOS обновляется
-    // ~4 раза в секунду, поэтому между его обновлениями экстраполируем
-    // позицию по performance.now(). Так ползунок движется плавно на 60fps,
-    // не дожидаясь следующего timeupdate.
+    // Lightweight progress tick during playback: we write ONLY
+    // two CSS variables. No setAttribute/classList/textContent.
+    // We interpolate: on iOS audio.currentTime updates
+    // ~4 times per second, so between its updates we extrapolate
+    // the position via performance.now(). The thumb thus moves smoothly at 60fps
+    // without waiting for the next timeupdate.
     function resolveAudioDurationFor(audioEl) {
         const dur = Number(audioEl.duration);
         if (Number.isFinite(dur) && dur > 0) return dur;
@@ -1079,10 +1079,10 @@ export function initChatMediaRuntime(deps = {}) {
             return Math.max(0, Math.min(100, (realCurrent / duration) * 100));
         }
 
-        // Когда движок реально обновил currentTime — пересинхронизируем базу.
-        // Чтобы ползунок никогда не прыгал назад, новая база = max(real, lastDisplay):
-        // если наша экстраполяция уже опередила реальный currentTime, остаёмся
-        // на этой позиции и ждём, пока движок догонит.
+        // When the engine actually updates currentTime, resync the base.
+        // So the thumb never jumps back, the new base = max(real, lastDisplay):
+        // if our extrapolation already ran ahead of the real currentTime, stay
+        // at that position and wait for the engine to catch up.
         if (Math.abs(realCurrent - lastReal) > 0.02) {
             audioEl._sunPlayLastReal = realCurrent;
             const safeBase = Math.max(realCurrent, Number.isFinite(lastDisplay) ? lastDisplay : 0);
@@ -1096,13 +1096,13 @@ export function initChatMediaRuntime(deps = {}) {
         const elapsed = Math.max(0, (nowMs() - basePerf) / 1000) * rate;
         let displayCurrent = baseCurrent + elapsed;
 
-        // Не уходим вперёд от реального currentTime больше чем на ~280 мс,
-        // чтобы при следующем timeupdate визуального отката не было.
+        // Do not run ahead of the real currentTime by more than ~280 ms
+        // so the next timeupdate causes no visible rollback.
         const cap = realCurrent + 0.28 * rate;
         if (displayCurrent > cap) displayCurrent = cap;
         if (displayCurrent > duration) displayCurrent = duration;
 
-        // Никогда не двигаемся назад относительно прошлого кадра.
+        // Never move backwards relative to the previous frame.
         if (Number.isFinite(lastDisplay) && displayCurrent < lastDisplay) {
             displayCurrent = lastDisplay;
         }
@@ -1130,7 +1130,7 @@ export function initChatMediaRuntime(deps = {}) {
         if (!audioEl || (audioEl !== activeVoicePlaybackAudioEl && !audioEl.isConnected) || audioEl.paused || audioEl.ended) return;
         stopAudioPlayerUiLoop(audioEl);
         captureAudioInterpolationBase(audioEl);
-        // 60fps. Reflow нет — только запись CSS-переменных.
+        // 60fps. No reflow — only CSS variable writes.
         const tick = () => {
             if (!audioEl || (audioEl !== activeVoicePlaybackAudioEl && !audioEl.isConnected) || audioEl.paused || audioEl.ended) {
                 stopAudioPlayerUiLoop(audioEl);
@@ -1212,7 +1212,7 @@ export function initChatMediaRuntime(deps = {}) {
             }
             const next = findAdjacentVoiceAudio(audioEl, 1);
             if (next) {
-                // Авто-переход на следующее голосовое (messenger-style).
+                // Auto-advance to the next voice message (messenger-style).
                 const nextToggle = next.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
                 if (nextToggle) {
                     const messageEl = resolveAudioMessageElement(next);
@@ -1221,7 +1221,7 @@ export function initChatMediaRuntime(deps = {}) {
                     return;
                 }
             }
-            // Соседнего голосового нет — закрываем плеер.
+            // No adjacent voice message — close the player.
             clearActiveVoicePlaybackAudio();
             return;
         }
@@ -1515,8 +1515,8 @@ export function initChatMediaRuntime(deps = {}) {
         if (!current) return;
         const targetAudio = findAdjacentVoiceAudio(current, direction);
         if (!targetAudio) {
-            // Нет соседнего голосового — на forward завершаем сессию,
-            // на back просто перематываем текущее на начало.
+            // No adjacent voice message — on forward end the session,
+            // on back just rewind the current one to the start.
             if (direction >= 0) {
                 clearActiveVoicePlaybackAudio({ pause: true });
             } else {
@@ -1526,13 +1526,13 @@ export function initChatMediaRuntime(deps = {}) {
             }
             return;
         }
-        // Останавливаем текущее и запускаем соседнее.
+        // Stop the current one and start the adjacent one.
         try { current.pause(); } catch (_) {}
         current.dataset.playRequested = '0';
         delete current.dataset.voicePreparing;
         const targetToggle = targetAudio.closest('.file-msg-audio-player')?.querySelector('.audio-player-toggle');
         if (!targetToggle) return;
-        // Прокручиваем сообщение в зону видимости.
+        // Scroll the message into view.
         const messageEl = resolveAudioMessageElement(targetAudio);
         try { messageEl?.scrollIntoView?.({ behavior: 'smooth', block: 'center' }); } catch (_) {}
         window._toggleAudioPlayer(targetToggle);
@@ -1654,8 +1654,8 @@ export function initChatMediaRuntime(deps = {}) {
         };
         voicePlaybackProgress.addEventListener('pointerdown', (event) => {
             voicePlaybackProgress.dataset.seeking = '1';
-            // Немедленный seek по координате тапа — иначе на iOS/Android приходится
-            // именно тянуть, простой тап в новую позицию не двигает аудио.
+            // Immediate seek to the tap coordinate — otherwise on iOS/Android you have
+            // to drag; a plain tap on a new position does not move the audio.
             if (Number.isFinite(event?.clientX)) seekToClientX(event.clientX);
             try { voicePlaybackProgress.setPointerCapture?.(event.pointerId); } catch (_) {}
         });

@@ -422,7 +422,7 @@ export const initChatPage = async () => {
     function resolveForwardContactRows() { return forwardController?.resolveForwardContactRows() || []; }
     function forwardMessagesToTargets(sourceMessages, targetRows) { return forwardController.forwardMessagesToTargets(sourceMessages, targetRows); }
 
-    // Drafts controller — initialised below после всех зависимостей.
+    // Drafts controller — initialised below after all dependencies.
     var draftsController;
     function scheduleCurrentChatDraftSave(...args) { return draftsController?.scheduleCurrentChatDraftSave(...args); }
     function flushDraftSaveForChat(...args) { return draftsController?.flushDraftSaveForChat(...args); }
@@ -804,7 +804,7 @@ export const initChatPage = async () => {
         isMobileViewport: () => isMobileViewport(),
     });
 
-    // initChatClipboardAndDrop вызывается ниже, после объявления dragDropOverlay.
+    // initChatClipboardAndDrop is called below, after dragDropOverlay is declared.
 
     initKeyboardShortcuts();
     initSidebarBrandQuickActions({
@@ -1114,8 +1114,8 @@ export const initChatPage = async () => {
         getPresenceState: () => onlineStatusController.getState(),
         baseUpdateOnlineStatusUI: (...args) => baseUpdateOnlineStatusUI(...args),
     });
-    // var-hoist: realtime-orchestrator может вызвать syncChatConnectionStatus
-    // на socket-connect раньше, чем initChatPage дойдёт до этой строки.
+    // var-hoist: realtime-orchestrator may call syncChatConnectionStatus
+    // on socket connect before initChatPage reaches this line.
     // eslint-disable-next-line no-var
     var setChatHeaderStatus;
     // eslint-disable-next-line no-var
@@ -1359,9 +1359,9 @@ export const initChatPage = async () => {
         clearOnlineStatusPendingBridge(onlineStatusController);
     };
 
-    // var-hoisted: до инициализации обёртки выше видят undefined, не TDZ.
-    // realtime-orchestrator может вызвать syncSidebarStatusBar() на connect
-    // ещё до того, как initChatPage дойдёт до этой строки.
+    // var-hoisted: before init the wrappers above see undefined, not a TDZ.
+    // realtime-orchestrator may call syncSidebarStatusBar() on connect
+    // before initChatPage reaches this line.
     // eslint-disable-next-line no-var
     var sidebarStatusController = createChatSidebarStatusRuntime({
         windowRef: window,

@@ -80,7 +80,7 @@ export function createChatEncryptionRuntime({
         if (!normalizedPeerUserId) return null;
         if (!windowRef.DoubleRatchet) return null;
         const session = await _loadDrSession(chatId);
-        // Нет DR-сессии — штатный fallback на RSA, не сигнализируем о тревоге.
+        // No DR session — normal fallback to RSA, no alarm raised.
         if (!session) return null;
         try {
             const v2keys = windowRef.deviceKey?.loadV2PrivateKeys ? await windowRef.deviceKey.loadV2PrivateKeys() : null;
@@ -94,9 +94,9 @@ export function createChatEncryptionRuntime({
             windowRef.e2eeStatusUI?.setStatus('dr');
             return cipherPayload;
         } catch (err) {
-            // Сессия БЫЛА, но DR-шифрование упало → это нештатный откат на RSA.
-            // Раньше ошибка молча проглатывалась и пользователь видел обычный
-            // legacy-бейдж — теперь явно сигнализируем о понижении (H1).
+            // A session EXISTED but DR encryption failed → an abnormal fallback to RSA.
+            // Previously the error was swallowed silently and the user saw the regular
+            // legacy badge — now we signal the downgrade explicitly (H1).
             console.warn('[E2EE] DR encrypt failed, falling back to RSA', err);
             windowRef.e2eeStatusUI?.setStatus('downgraded');
             return null;
@@ -106,7 +106,7 @@ export function createChatEncryptionRuntime({
     async function _tryEncryptMls(chatId, plainText) {
         if (!windowRef.MLSClient) return null;
         const groupState = await _loadMlsGroup(chatId);
-        // Нет MLS-группы — штатный fallback на RSA, не сигнализируем о тревоге.
+        // No MLS group — normal fallback to RSA, no alarm raised.
         if (!groupState) return null;
         try {
             const v2keys = windowRef.deviceKey?.loadV2PrivateKeys ? await windowRef.deviceKey.loadV2PrivateKeys() : null;
@@ -120,7 +120,7 @@ export function createChatEncryptionRuntime({
             windowRef.e2eeStatusUI?.setStatus('mls');
             return cipherPayload;
         } catch (err) {
-            // Группа БЫЛА, но MLS-шифрование упало → нештатный откат на RSA (H1).
+            // A group EXISTED but MLS encryption failed → an abnormal fallback to RSA (H1).
             console.warn('[E2EE] MLS encrypt failed, falling back to RSA', err);
             windowRef.e2eeStatusUI?.setStatus('downgraded');
             return null;

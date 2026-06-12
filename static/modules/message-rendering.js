@@ -71,7 +71,7 @@ function normalizeWaveform(rawWaveform) {
         .map((value) => Number(value))
         .filter((value) => Number.isFinite(value))
         .map((value) => Math.max(8, Math.min(100, Math.round(value))));
-    // Если данные есть — используем их (даже тихая запись), иначе fallback
+    // If data exists use it (even a quiet write), otherwise fall back
     if (cleaned.length >= 8) return cleaned;
     return DEFAULT_AUDIO_WAVEFORM.slice();
 }
@@ -293,8 +293,8 @@ function bindMessageInteractiveHandlers(messageDiv) {
     });
 
     messageDiv.querySelectorAll('.audio-player-toggle').forEach((toggleBtn) => {
-        // Не даём кнопке забирать фокус — иначе на iOS клавиатура
-        // (если был активен composer textarea) закроется при тапе play.
+        // Keep the button from stealing focus — otherwise on iOS the keyboard
+        // (if the composer textarea was active) closes on a play tap.
         const preventFocusSteal = (event) => {
             const messageInput = document.getElementById('messageInput');
             if (messageInput && document.activeElement === messageInput) {

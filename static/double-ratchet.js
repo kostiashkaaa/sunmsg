@@ -1,17 +1,17 @@
 /**
  * Double Ratchet Algorithm — Signal Protocol (RFC draft)
  *
- * Реализует полный DR для 1:1 сообщений:
+ * Implements the full DR for 1:1 messages:
  *   - Diffie-Hellman ratchet (X25519)
  *   - Symmetric-key ratchet (HKDF-SHA256)
- *   - Пропущенные ключи (out-of-order messages, до MAX_SKIP)
+ *   - Skipped keys (out-of-order messages, up to MAX_SKIP)
  *
- * Инициализация:
- *   - Инициатор: DR.initSender(masterSecret, bobDHPublicKeyB64u)
- *   - Получатель: DR.initReceiver(masterSecret, bobDHPrivateKeyJwk)
+ * Initialization:
+ *   - Initiator: DR.initSender(masterSecret, bobDHPublicKeyB64u)
+ *   - Receiver: DR.initReceiver(masterSecret, bobDHPrivateKeyJwk)
  *
- * masterSecret — 64 байта от X3DH (первые 32 — RK, следующие 32 — CK).
- * Состояние сериализуется в JSON для хранения в БД / IndexedDB.
+ * masterSecret — 64 bytes from X3DH (first 32 — RK, next 32 — CK).
+ * The state serializes to JSON for storage in the DB / IndexedDB.
  */
 
 'use strict';
@@ -21,50 +21,50 @@ const DR_INFO_RK = 'SUN-DR-RK-v1';
 const DR_INFO_CK = 'SUN-DR-CK-v1';
 const DR_INFO_MK = 'SUN-DR-MK-v1';
 
-// ── Зависимость от crypto-v2.js ───────────────────────────────────────────────
+// ── Dependency on crypto-v2.js ───────────────────────────────────────────────
 function _cv2() {
     if (typeof window !== 'undefined' && window.cryptoV2) return window.cryptoV2;
     throw new Error('crypto-v2.js must be loaded before double-ratchet.js');
 }
 
-// ── KDF функции рэтчета ───────────────────────────────────────────────────────
+// ── Ratchet KDF functions ───────────────────────────────────────────────────────
 
 async function _kdfRK(rootKey, dhOutput) {
-    // Возвращает [newRootKey (32), newChainKey (32)]
+    // Returns [newRootKey (32), newChainKey (32)]
     const cv2 = _cv2();
     const out = await cv2.hkdf(dhOutput, rootKey, DR_INFO_RK, 64);
     return [out.slice(0, 32), out.slice(32, 64)];
 }
 
 async function _kdfCK(chainKey) {
-    // Возвращает [newChainKey (32), messageKey (32)]
+    // Returns [newChainKey (32), messageKey (32)]
     const cv2 = _cv2();
     const mk = await cv2.hkdf(chainKey, new Uint8Array(32).buffer, DR_INFO_MK, 32);
     const ck = await cv2.hkdf(chainKey, new Uint8Array([1]).buffer, DR_INFO_CK, 32);
     return [ck, mk];
 }
 
-// ── Состояние рэтчета ─────────────────────────────────────────────────────────
+// ── Ratchet state ─────────────────────────────────────────────────────────
 
 function _emptyState() {
     return {
-        // DH ключи
-        DHs: null,          // { publicKeyB64u, privateKeyJwk } — наша текущая DH пара
-        DHr: null,          // string — публичный ключ собеседника (b64u)
-        // Корневой ключ и цепочечные ключи (b64u raw bytes)
+        // DH keys
+        DHs: null,          // { publicKeyB64u, privateKeyJwk } — our current DH pair
+        DHr: null,          // string — the peer's public key (b64u)
+        // Root key and chain keys (b64u raw bytes)
         RK: null,
         CKs: null,          // Sending chain key
         CKr: null,          // Receiving chain key
-        // Счётчики
+        // Counters
         Ns: 0,              // Sent messages in current chain
         Nr: 0,              // Received messages in current chain
         PN: 0,              // Messages in previous sending chain
-        // Пропущенные ключи: Map<"dhPub:msgNum" → messageKeyB64u>
+        // Skipped keys: Map<"dhPub:msgNum" → messageKeyB64u>
         MKSKIPPED: {},
     };
 }
 
-// ── Сериализация / десериализация ─────────────────────────────────────────────
+// ── Serialization / deserialization ─────────────────────────────────────────────
 
 function _serializeState(state) {
     return JSON.stringify(state);
@@ -74,7 +74,7 @@ function _deserializeState(json) {
     return JSON.parse(json);
 }
 
-// ── DH операции ───────────────────────────────────────────────────────────────
+// ── DH operations ───────────────────────────────────────────────────────────────
 
 async function _dhGenerate() {
     const cv2 = _cv2();
@@ -89,7 +89,7 @@ async function _dhCompute(ourPrivJwk, theirPubB64u) {
     return cv2.x25519DH(priv, pub);
 }
 
-// ── Инициализация ─────────────────────────────────────────────────────────────
+// ── Initialization ─────────────────────────────────────────────────────────────
 
 async function initSender(masterSecretBuf, recipientDHPublicB64u) {
     const state = _emptyState();
@@ -107,7 +107,7 @@ async function initSender(masterSecretBuf, recipientDHPublicB64u) {
 }
 
 async function initReceiver(masterSecretBuf, ourDHKeyPair) {
-    // ourDHKeyPair — та же пара, чей публичный ключ был в prekey bundle
+    // ourDHKeyPair — the same pair whose public key was in the prekey bundle
     const state = _emptyState();
     state.DHs = ourDHKeyPair;   // { publicKeyB64u, privateKeyJwk }
     state.DHr = null;
@@ -148,7 +148,7 @@ async function decrypt(state, message, senderEd25519PubB64u = null) {
     const cv2 = _cv2();
     const { header, ciphertext, iv } = message;
 
-    // Проверяем пропущенные ключи
+    // Check skipped keys
     const skippedKey = _getSkippedKey(state, header.dh, header.n);
     if (skippedKey) {
         return _decryptWithKey(cv2.b64uDecode(skippedKey), ciphertext, iv);
@@ -156,9 +156,9 @@ async function decrypt(state, message, senderEd25519PubB64u = null) {
 
     let needRatchet = false;
 
-    // DH рэтчет если получили новый DH публичный ключ
+    // DH ratchet when a new DH public key arrives
     if (state.DHr === null || header.dh !== state.DHr) {
-        // Пропустить оставшиеся ключи текущей цепочки приёма
+        // Skip the remaining keys of the current receiving chain
         if (state.CKr !== null) {
             await _skipMessageKeys(state, header.pn);
         }
@@ -166,7 +166,7 @@ async function decrypt(state, message, senderEd25519PubB64u = null) {
         needRatchet = true;
         await _skipMessageKeys(state, header.pn);
 
-        // Переключаем DH ratchet
+        // Advance the DH ratchet
         state.PN = state.Ns;
         state.Ns = 0;
         state.Nr = 0;
@@ -178,7 +178,7 @@ async function decrypt(state, message, senderEd25519PubB64u = null) {
         state.RK = cv2.b64uEncode(newRK1);
         state.CKr = cv2.b64uEncode(newCKr);
 
-        // Генерируем новую DH пару для следующей отправки
+        // Generate a new DH pair for the next send
         state.DHs = await _dhGenerate();
         const dhOut2 = await _dhCompute(state.DHs.privateKeyJwk, state.DHr);
         const [newRK2, newCKs] = await _kdfRK(cv2.b64uDecode(state.RK), dhOut2);
@@ -206,7 +206,7 @@ async function _decryptWithKey(mkBuf, ciphertextB64u, ivB64u) {
     }
 }
 
-// ── Пропущенные ключи ─────────────────────────────────────────────────────────
+// ── Skipped keys ─────────────────────────────────────────────────────────
 
 function _getSkippedKey(state, dhPub, msgNum) {
     const key = `${dhPub}:${msgNum}`;
@@ -229,7 +229,7 @@ async function _skipMessageKeys(state, until) {
         state.Nr++;
     }
 
-    // Ограничиваем размер буфера пропущенных ключей
+    // Cap the skipped-keys buffer size
     const keys = Object.keys(state.MKSKIPPED);
     if (keys.length > DR_MAX_SKIP) {
         const toRemove = keys.slice(0, keys.length - DR_MAX_SKIP);
@@ -237,7 +237,7 @@ async function _skipMessageKeys(state, until) {
     }
 }
 
-// ── Упаковка для отправки на сервер ───────────────────────────────────────────
+// ── Packaging for sending to the server ───────────────────────────────────────────
 
 async function encryptAndPackage(state, plaintext, senderEd25519PrivKey, senderEd25519PubB64u) {
     const cv2 = _cv2();
@@ -273,8 +273,8 @@ async function decryptPackage(state, payloadStr) {
     const payload = JSON.parse(payloadStr);
     if (payload.v !== 3 || payload.proto !== 'dr') throw new Error('not_dr_v3');
 
-    // Подпись Ed25519 в DR-payload обязательна: encryptAndPackage всегда её
-    // ставит. Её отсутствие означает stripping → помечаем непроверенным.
+    // The Ed25519 signature in a DR payload is mandatory: encryptAndPackage
+    // always sets it. Its absence means stripping → mark unverified.
     let unverified = false;
     if (payload.sig && payload.sender_ed_pub) {
         const pubKey = await cv2.importEd25519Public(payload.sender_ed_pub);
@@ -295,7 +295,7 @@ async function decryptPackage(state, payloadStr) {
     return { state, plaintext: unverified ? '⚠️ [не проверено] ' + plaintext : plaintext };
 }
 
-// ── Сериализация состояния ────────────────────────────────────────────────────
+// ── State serialization ────────────────────────────────────────────────────
 
 function serializeSession(state) {
     return _serializeState(state);

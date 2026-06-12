@@ -1,8 +1,8 @@
-/* Просмотр фото профиля в настройках — в стиле просмотрщика фото чата:
-   тёмный фон, фото в оригинальной форме (квадрат, не круг), плавная
-   анимация и инфо-плашка сверху, как в мессенджере.
-   Закрытие надёжное (по таймеру, без зависимости от transitionend),
-   поэтому курсор/оверлей не «залипают». */
+/* Profile photo viewer in settings — styled like the chat photo viewer:
+   dark background, photo in its original shape (square, not a circle), smooth
+   animation and an info strip on top, messenger-style.
+   Closing is reliable (timer-based, no dependency on transitionend),
+   so the cursor/overlay never get stuck. */
 
 let lightboxEl = null;
 let closeTimer = 0;
@@ -32,7 +32,7 @@ function buildLightbox() {
     document.body.appendChild(el);
 
     el.addEventListener('click', (event) => {
-        // клик по фону или по кнопке закрытия — закрыть; по самому фото — нет
+        // click on the backdrop or close button closes; on the photo itself — no
         if (event.target.closest('.avatar-lightbox-img')) return;
         closeLightbox();
     });
@@ -49,7 +49,7 @@ function ensureLightbox() {
     return lightboxEl;
 }
 
-/* Пытаемся вытащить дату из ?t=timestamp в URL аватара (его ставит preview). */
+/* Try to pull the date from ?t=timestamp in the avatar URL (set by preview). */
 function describeAvatarDate(src) {
     try {
         const url = new URL(src, window.location.origin);
@@ -59,7 +59,7 @@ function describeAvatarDate(src) {
                 day: 'numeric', month: 'long', year: 'numeric',
             });
         }
-    } catch { /* игнорируем — просто не покажем дату */ }
+    } catch { /* ignore — just skip showing the date */ }
     return '';
 }
 
@@ -85,8 +85,8 @@ function closeLightbox() {
     if (!lightboxEl) return;
     const closeSeq = ++lightboxLifecycleSeq;
     lightboxEl.classList.remove('is-open');
-    // Надёжное скрытие по таймеру — не ждём transitionend, который может
-    // не сработать. Это устраняет «залипание» курсора и невидимый оверлей.
+    // Reliable timer-based hiding — we do not wait for transitionend, which may
+    // never fire. This removes the stuck cursor and the invisible overlay.
     if (closeTimer) clearTimeout(closeTimer);
     closeTimer = window.setTimeout(() => {
         if (closeSeq !== lightboxLifecycleSeq) return;
@@ -98,13 +98,13 @@ function closeLightbox() {
     }, 220);
 }
 
-/* Делает контейнеры аватара кликабельными для просмотра фото. */
+/* Makes avatar containers clickable to view the photo. */
 export function initAvatarLightbox(containers = []) {
     containers.filter(Boolean).forEach((container) => {
         if (container.dataset.lightboxBound === '1') return;
         container.dataset.lightboxBound = '1';
         container.addEventListener('click', (event) => {
-            // не перехватываем клик по кнопке-камере / загрузке файла
+            // do not intercept clicks on the camera button / file upload
             if (event.target.closest('.settings-avatar-edit-btn, label')) return;
             const img = container.querySelector('img');
             if (!img || !img.src) return;

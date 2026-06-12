@@ -1,10 +1,10 @@
 /* Split from static/pages/settings.css */
 
-/* ── Левый сайдбар навигации ── */
+/* ── Left navigation sidebar ── */
 
-        /* ── Основное содержимое ── */
+        /* ── Main content ── */
 
-        /* Карточки-пузыри: каждая секция настройки — выделенный блок */
+        /* Bubble cards: each settings section is a distinct block */
         .settings-card {
             background: color-mix(in srgb, var(--paper) 62%, transparent);
             border: 0;
@@ -51,7 +51,7 @@
             margin: 0;
         }
 
-        /* Строки настроек */
+        /* Settings rows */
         .settings-row {
             padding: 12px 0;
             border-bottom: 1px solid var(--rule-soft);
@@ -74,7 +74,7 @@
             margin-top: 2px;
         }
 
-/* Поля ввода */
+/* Input fields */
         .settings-input {
             border: none;
             border-radius: 0;
@@ -179,7 +179,7 @@
             outline-offset: 3px;
         }
 
-        /* Публичный ключ */
+        /* Public key */
         .key-textarea {
             width: 100%;
             border: 1px solid var(--border);
@@ -647,7 +647,7 @@
             background: rgba(239, 68, 68, 0.03);
         }
 
-        /* Кнопки действий */
+        /* Action buttons */
         .btn-settings {
             border: none;
             border-radius: 10px;
@@ -696,7 +696,7 @@
             line-height: 1;
         }
 
-        /* Алерт */
+        /* Alert */
         .settings-alert {
             border-radius: 12px;
             padding: 14px 18px;
@@ -722,7 +722,7 @@
         .settings-alert.danger  { background: rgba(239,68,68,0.15);  border: 1px solid rgba(239,68,68,0.3);  color: var(--danger); }
         .settings-alert.warning { background: rgba(245,158,11,0.15); border: 1px solid rgba(245,158,11,0.3); color: var(--warning); }
 
-        /* Копировать кнопку */
+        /* Copy button */
         .copy-row {
             display: flex;
             gap: 8px;
@@ -1848,7 +1848,7 @@ select.settings-select-control:focus-visible {
     border-left: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
 }
 
-/* ── Confirm-диалог для settings-страницы ── */
+/* ── Confirm dialog for the settings page ── */
 .dialog-surface-btn,
 .dialog-danger-btn {
     display: inline-flex;

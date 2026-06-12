@@ -1,6 +1,6 @@
 /* chat components layer */
 
-        /* Токены цветов определены в style.css — здесь только специфичные для чата стили */
+        /* Color tokens are defined in style.css — only chat-specific styles live here */
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -122,7 +122,7 @@
 
 
 
-        /* ── Универсальный confirm диалог ── */
+        /* ── Universal confirm dialog ── */
         #confirmActionModal {
             border: none;
             border-radius: var(--radius-lg);
@@ -208,7 +208,7 @@
 
 
 
-        /* ── Делит-чат диалог: согласованные кнопки ── */
+        /* ── Delete-chat dialog: consistent buttons ── */
         .delete-chat-modal-overlay {
             position: fixed;
             inset: 0;
@@ -350,7 +350,7 @@
 
 
 
-        /* ── Кастомный чекбокс для модала удаления сообщений ── */
+        /* ── Custom checkbox for the message-deletion modal ── */
         .delete-checkbox-row {
             display: flex;
             align-items: center;
@@ -1717,7 +1717,7 @@
             box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.04);
         }
 
-        /* --- Шапка сайдбара --- */
+        /* --- Sidebar header --- */
         .sidebar-header {
             display: flex;
             align-items: center;
@@ -1751,7 +1751,7 @@
 
 
 
-        /* --- Выпадающее меню профиля --- */
+        /* --- Profile dropdown menu --- */
 .profile-menu {
             background: transparent;
             overflow: hidden;
@@ -1788,7 +1788,7 @@
 
 
 
-        /* --- Нижний блок пользователя --- */
+        /* --- Bottom user block --- */
         .sidebar-bottom-user {
             position: absolute;
             left: 0;
@@ -1814,7 +1814,7 @@
         }
 
 
-        /* --- Попап меню (три точки) --- */
+        /* --- Popup menu (three dots) --- */
         .user-popup-menu {
             position: absolute;
             bottom: calc(100% + 6px);
@@ -1852,7 +1852,7 @@
 
 
 
-        /* --- Строка поиска + кнопка новый чат --- */
+        /* --- Search row + new chat button --- */
         .sidebar-search-bar {
             flex: 1 1 auto;
             width: auto;
@@ -2113,7 +2113,7 @@
 
 
 
-        /* --- Запросы на диалог (inline в сайдбаре) --- */
+        /* --- Conversation requests (inline in the sidebar) --- */
 .dialog-requests-section {
             background: transparent;
             border-bottom: none;
@@ -2395,7 +2395,7 @@
 
 
 
-        /* --- Список контактов --- */
+        /* --- Contacts list --- */
         .contacts-list {
             flex: 0 1 auto;
             min-height: 0;
@@ -4361,8 +4361,8 @@
         }
 
 
-        /* reply-bar и edit-banner теперь живут внутри #messageForm —
-           растягиваем их на всю ширину формы. */
+        /* The reply bar and edit banner now live inside #messageForm —
+           stretch them to the full form width. */
         #messageForm > .reply-bar,
         #messageForm > .edit-message-banner {
             width: 100% !important;
@@ -7051,7 +7051,7 @@
             color: rgba(255, 255, 255, 0.92);
         }
 
-        /* Цветные иконки по типу файла (входящие) */
+        /* Colored icons by file type (incoming) */
         .file-msg-link .file-icon-wrap[data-file-color="red"]    { background: #fff0f0; color: #e53935; }
         .file-msg-link .file-icon-wrap[data-file-color="blue"]   { background: #e8f0fe; color: #1a73e8; }
         .file-msg-link .file-icon-wrap[data-file-color="green"]  { background: #e6f4ea; color: #2e7d32; }
@@ -7061,7 +7061,7 @@
         .file-msg-link .file-icon-wrap[data-file-color="gray"]   { background: #f5f5f5; color: #616161; }
         .file-msg-link .file-icon-wrap[data-file-color="accent"] { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2) 88%); color: var(--accent); }
 
-        /* Исходящие — иконки светлые поверх цветного фона */
+        /* Outgoing — light icons over a colored background */
         .message.self .file-msg-link .file-icon-wrap[data-file-color] {
             background: rgba(255, 255, 255, 0.18);
             color: rgba(255, 255, 255, 0.92);
@@ -7197,7 +7197,7 @@
             color: var(--chat-bubble-in-text);
         }
 
-        /* Голосовые сообщения — компактнее обычных аудио-файлов */
+        /* Voice messages — more compact than regular audio files */
         .message .bubble.bubble--audio:not(.bubble--audio-file) {
             --audio-leading-offset: 47px; /* play button (38) + gap (9) */
             min-width: clamp(160px, 22vw, 200px);
@@ -8150,8 +8150,8 @@
 
 
         /* Reply bar */
-        /* Composer-controls: горизонтальный ряд кнопок и поля ввода
-           внутри #messageForm. Раньше эти стили были на самой форме. */
+        /* Composer controls: the horizontal row of buttons and the input field
+           inside #messageForm. These styles used to sit on the form itself. */
         .composer-controls {
             display: flex;
             align-items: center;
@@ -8231,8 +8231,8 @@
         }
 
 
-        /* has-reply-banner раньше переключал форму и бар как два бокса;
-           теперь reply-bar внутри #messageForm и отдельные оверрайды не нужны. */
+        /* has-reply-banner used to toggle the form and the bar as two boxes;
+           now the reply bar is inside #messageForm and separate overrides are unneeded. */
         .reply-bar__line { width:3px; min-height:32px; background:var(--accent);
             border-radius:2px; flex-shrink:0; }
 
@@ -8276,8 +8276,8 @@
         }
 
 
-        /* Когда edit-banner живёт внутри #messageForm — снимаем его внешний
-           «карточный» вид, чтобы не было двойной рамки/тени. */
+        /* When the edit banner lives inside #messageForm, strip its outer
+           "card" look to avoid a double border/shadow. */
         #messageForm > .edit-message-banner {
             border: 0;
             border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent 40%);
@@ -10143,7 +10143,7 @@
         }
 
 
-        /* === Медиа + текст: статус-строка снизу (внутри footer) === */
+        /* === Media + text: status row at the bottom (inside the footer) === */
         .bubble--image-has-caption .msg-meta,
         .bubble--video-has-caption .msg-meta,
         .bubble--image-has-caption .message-meta,
@@ -10175,7 +10175,7 @@
 
 
 
-        /* === Только медиа: статус поверх (как в мессенджере) === */
+        /* === Media only: status overlaid (messenger-style) === */
         .bubble--image:not(.bubble--image-has-caption) .msg-meta,
         .bubble--image:not(.bubble--image-has-caption) .message-meta,
         .bubble--video:not(.bubble--video-has-caption) .msg-meta,
@@ -10219,7 +10219,7 @@
 
 
 
-        /* position: relative нужен bubble без caption, чтобы absolute работал */
+        /* position: relative is needed on a captionless bubble so absolute works */
         .bubble--image:not(.bubble--image-has-caption),
         .bubble--video:not(.bubble--video-has-caption) {
             position: relative;
@@ -10227,7 +10227,7 @@
 
 
 
-        /* msg-edited показываем для медиа с подписью, скрываем без */
+        /* show msg-edited for captioned media, hide it otherwise */
         .bubble--image-has-caption .msg-meta .msg-edited,
         .bubble--video-has-caption .msg-meta .msg-edited,
         .bubble--image-has-caption .message-meta .msg-edited,
@@ -10434,8 +10434,8 @@
         .message .bubble.bubble--has-message-text {
             position: relative;
             --text-meta-reserve: calc(74px * var(--chat-message-scale));
-            /* минимальная ширина пузыря = резерв метаданных + паддинги,
-               чтобы время и галочки не выезжали за пузырь */
+            /* minimum bubble width = metadata reserve + paddings
+               so the time and ticks never overflow the bubble */
             min-width: clamp(
                 152px,
                 calc(var(--text-meta-reserve) + var(--chat-message-pad-x) * 2 + 44px),
@@ -10583,7 +10583,7 @@
         }
 
 
-        /* Медиа с caption: footer с фоном снизу пузыря */
+        /* Captioned media: a footer with background at the bubble bottom */
         .bubble--image.bubble--image-has-caption > .message-footer,
         .bubble--video.bubble--video-has-caption > .message-footer {
             position: relative;
@@ -10607,7 +10607,7 @@
             color: var(--chat-bubble-out-text);
         }
 
-        /* Медиа без caption: footer прозрачный-контейнер, мета — overlay поверх фото */
+        /* Captionless media: a transparent footer container, meta overlaid on the photo */
         .bubble--image:not(.bubble--image-has-caption) > .message-footer,
         .bubble--video:not(.bubble--video-has-caption) > .message-footer {
             position: absolute;
@@ -10672,7 +10672,7 @@
         }
 
 
-        /* Медиа с caption: мета — статичная строка внутри footer */
+        /* Captioned media: meta is a static row inside the footer */
         .bubble--image.bubble--image-has-caption > .message-footer > .msg-meta,
         .bubble--image.bubble--image-has-caption > .message-footer > .message-meta,
         .bubble--video.bubble--video-has-caption > .message-footer > .msg-meta,
@@ -10685,7 +10685,7 @@
             float: none;
         }
 
-        /* Медиа без caption: мета — абсолютный overlay снизу-справа поверх фото */
+        /* Captionless media: meta is an absolute bottom-right overlay on the photo */
         .bubble--image:not(.bubble--image-has-caption) > .message-footer > .msg-meta,
         .bubble--image:not(.bubble--image-has-caption) > .message-footer > .message-meta,
         .bubble--video:not(.bubble--video-has-caption) > .message-footer > .msg-meta,
@@ -11289,8 +11289,8 @@
             .chat-area { --chat-bubble-max-width: min(88%, 520px); }
             .chat-input-area { --composer-action-size: 42px; }
             .chat-header { padding: 7px 10px; gap: 6px; }
-            /* Подавляем системный «коллаут» iOS на сообщениях/медиа,
-               чтобы наш long-press запускал контекстное меню без конфликтов */
+            /* Suppress the iOS system callout on messages/media
+               so our long-press opens the context menu without conflicts */
             .chat-messages .message,
             .chat-messages .bubble,
             .chat-messages .file-msg-img,
@@ -12215,8 +12215,8 @@
 
 
 
-        /* Внутренние элементы вкладок и тела — мягкий fade-in после самого overlay,
-           чтобы появление было «дышащим», а не одним блоком. */
+        /* Inner tab/body elements get a soft fade-in after the overlay itself
+           so the appearance breathes instead of landing as one block. */
         .search-overlay__tabs,
         .search-overlay__body {
             opacity: 0;
@@ -12233,7 +12233,7 @@
 
 
 
-        /* Контактный лист в фоне получает лёгкий fade, чтобы переход был связным. */
+        /* The background contact list gets a light fade for a coherent transition. */
         .sidebar #sidebarScrollArea,
         .sidebar .dialog-requests-section,
         .sidebar .e2e-lock-alert {
@@ -12303,7 +12303,7 @@
 
 
 
-        /* visually-hidden helper (если ещё не определён глобально) */
+        /* visually-hidden helper (if not already defined globally) */
         .visually-hidden {
             position: absolute !important;
             width: 1px; height: 1px;
@@ -12410,14 +12410,14 @@
 }
 
 /* ─────────── Voice playback bar — mobile (<=768px) ───────────
-   Сохраняем десктопное поведение: бар выезжает СВЕРХУ и сдвигает
-   шапку чата вниз. Меняем только размеры под сенсорный ввод и убираем
-   слайдер громкости (на мобиле есть аппаратные кнопки). */
+   Keep the desktop behavior: the bar slides in from the TOP and pushes
+   the chat header down. We only resize for touch input and drop the
+   volume slider (mobile has hardware buttons). */
 @media (max-width: 768px) {
-    /* Бар остаётся position: absolute (как на десктопе), но без
-       --vv-top-offset: на iOS этот оффсет может стать отрицательным
-       при открытой клавиатуре и уводит бар за верхний край видимой
-       области. На мобиле всегда top: 0 от chat-area. */
+    /* The bar stays position: absolute (as on desktop) but without
+       --vv-top-offset: on iOS that offset can go negative
+       with the keyboard open and push the bar past the top edge of the
+       visible area. On mobile it is always top: 0 from the chat-area. */
     .voice-playback-bar {
         top: 0 !important;
     }
@@ -12458,7 +12458,7 @@
         font-size: 11px;
         max-width: 100%;
     }
-    /* Слайдер громкости лишний на мобиле — есть аппаратные кнопки */
+    /* The volume slider is redundant on mobile — hardware buttons exist */
     .voice-playback-bar__volume {
         display: none;
     }
@@ -12470,23 +12470,23 @@
     .voice-playback-bar__progress-wrap {
         height: 16px;
     }
-    /* Скрываем jump-to-new-btn пока бар активен — он рисовался
-       поверх кнопок воспроизведения. */
+    /* Hide jump-to-new-btn while the bar is active — it used to render
+       on top of the playback buttons. */
     .chat-area.chat-area--voice-playback-active .jump-to-new-btn {
         opacity: 0 !important;
         pointer-events: none !important;
         visibility: hidden !important;
     }
 
-    /* ─── Скрываем аватарку слева — даём текстам больше ширины ─── */
+    /* ─── Hide the left avatar — give the text more width ─── */
     .chat-area { --chat-avatar-slot: 0px; }
     .chat-messages .message-avatar-slot {
         display: none !important;
     }
 
-    /* ─── Компактные аудио-баблы ─── */
-    /* Жёстко ограничиваем размер контейнера, иначе .message-stack
-       (--chat-bubble-max-width = 448px) распирает бабл на всю ширину. */
+    /* ─── Compact audio bubbles ─── */
+    /* Hard-cap the container size, otherwise .message-stack
+       (--chat-bubble-max-width = 448px) inflates the bubble to full width. */
     .message-stack.message-stack--audio {
         max-width: min(var(--chat-bubble-max-width), 520px) !important;
     }
@@ -12516,7 +12516,7 @@
     .bubble--audio .audio-player-wave {
         height: 18px;
     }
-    /* Сжимаем волну: уменьшаем расстояние между палочками */
+    /* Compress the waveform: reduce the gap between bars */
     .bubble--audio .audio-wave-layer {
         gap: 1.2px;
     }
@@ -12526,7 +12526,7 @@
     .bubble--audio .audio-message-body {
         padding-bottom: calc(12px * var(--chat-message-scale));
     }
-    /* На совсем узких экранах ужмём ещё */
+    /* Tighten further on very narrow screens */
     @media (max-width: 380px) {
         .message-stack.message-stack--audio {
             max-width: min(var(--chat-bubble-max-width), 520px) !important;
@@ -13568,10 +13568,10 @@
 
 /* ═══════════════════════════════════════════════════════════════
    ANIMATION STABILITY PATCH
-   Устранение прыжков и скачков в чате: реакции, баннер, bubble
+   Eliminating chat jumps and jolts: reactions, banner, bubble
    ═══════════════════════════════════════════════════════════════ */
 
-/* GPU-слой для message-stack во время свайп-анимации и реакций */
+/* GPU layer for the message-stack during swipe animations and reactions */
 .message-stack {
     will-change: auto;
 }
@@ -13581,14 +13581,14 @@
     will-change: transform;
 }
 
-/* Плавный переход строки реакций при первом появлении         */
+/* Smooth reactions-row transition on first appearance         */
 .message-reactions {
     transition:
         opacity var(--dur-medium) var(--ease-quick),
         transform var(--dur-medium) var(--ease-spring);
 }
 
-/* Строка реакций, которая только что появилась (новая реакция) */
+/* A reactions row that just appeared (new reaction) */
 .message-reactions.reaction-row--reveal {
     animation: reactionRowReveal var(--dur-medium) var(--ease-spring) both;
 }
@@ -13606,20 +13606,20 @@
         border-color var(--dur-quick) var(--ease-quick);
 }
 
-/* Новый pill появляется с масштабом, а не скачком             */
+/* A new pill appears with a scale, not a jump             */
 .reaction-pill {
     transform-origin: center bottom;
 }
 
-/* Анимация появления нового pill (добавляется JS-ом,
-   но также работает при первом рендере через CSS-анимацию)    */
+/* New-pill entry animation (added by JS,
+   but it also works on first render via the CSS animation)    */
 @keyframes reactionPillIn {
     0%   { opacity: 0; transform: scale(0.6) translateY(4px); }
     60%  { opacity: 1; transform: scale(1.08) translateY(-1px); }
     100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-/* Pill исчезает плавно                                        */
+/* The pill fades out smoothly                                        */
 @keyframes reactionPillOut {
     0%   { opacity: 1; transform: scale(1); }
     100% { opacity: 0; transform: scale(0.72) translateY(3px); }
@@ -13630,13 +13630,13 @@
     pointer-events: none;
 }
 
-/* Улучшенная анимация reaction-just-added с правильным
-   transform-origin для pill в нижней части bubble            */
+/* Improved reaction-just-added animation with the right
+   transform-origin for a pill at the bubble bottom            */
 .reaction-pill.reaction-just-added {
     transform-origin: center bottom;
 }
 
-/* Reduce motion: все анимации отключаются                    */
+/* Reduce motion: all animations are disabled                    */
 @media (prefers-reduced-motion: reduce) {
     .message,
     .message *,
@@ -14060,7 +14060,7 @@
 }
 
 
-/* ── Crypto upgrade prompt (для пользователей без v2 ключей) ──────────────── */
+/* ── Crypto upgrade prompt (for users without v2 keys) ──────────────── */
 
 .crypto-upgrade-banner {
     display: flex;

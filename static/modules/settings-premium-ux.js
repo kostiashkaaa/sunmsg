@@ -1,7 +1,7 @@
 /**
  * settings-premium-ux.js
  * Premium UX improvements for Settings panel.
- * Вызывается один раз после инициализации панели настроек.
+ * Called once after the settings panel initializes.
  */
 
 const premiumUxInitializedDocs = new WeakSet();
@@ -23,7 +23,7 @@ export function initSettingsPremiumUX(doc = document) {
     observeSettingsSections(doc);
 }
 
-/* ── 1. Range inputs: --range-pct CSS variable для progress fill ──────────── */
+/* ── 1. Range inputs: --range-pct CSS variable for the progress fill ──────────── */
 function initRangeInputs(doc) {
     function syncRange(input) {
         const min = parseFloat(input.min) || 0;
@@ -45,7 +45,7 @@ function initRangeInputs(doc) {
     const scene = doc.querySelector('.settings-scene');
     if (!scene || observedRangeScenes.has(scene)) return;
 
-    // MutationObserver для динамически добавленных range-inputs
+    // MutationObserver for dynamically added range inputs
     const mo = new MutationObserver(mutations => {
         for (const m of mutations) {
             for (const node of m.addedNodes) {
@@ -83,26 +83,26 @@ function initRangeMinMaxLabels(doc) {
     });
 }
 
-/* ── 3. Privacy detail — плавный crossfade вместо settings-hidden ─────────── */
+/* ── 3. Privacy detail — smooth crossfade instead of settings-hidden ─────────── */
 function initPrivacyPanelTransition(doc) {
     const overview = doc.getElementById('privacyOverviewPanel');
     const detail = doc.getElementById('privacyDetailPanel');
     if (!overview || !detail) return;
 
-    // Снимаем жёсткий display:none управляемый JS через settings-hidden
-    // Заменяем на CSS-классы is-visible / is-hidden
+    // Remove the hard display:none managed by JS via settings-hidden
+    // Replace it with the is-visible / is-hidden CSS classes
     function patchPrivacyVisibility() {
         const obs = new MutationObserver(() => {
             const detailHidden = detail.classList.contains('settings-hidden');
             const overviewHidden = overview.classList.contains('settings-hidden');
 
             if (!detailHidden) {
-                // Detail открывается
+                // Detail opens
                 overview.classList.add('is-hidden');
                 detail.classList.remove('settings-hidden');
                 detail.classList.add('is-visible');
             } else {
-                // Возврат к overview
+                // Back to the overview
                 detail.classList.remove('is-visible');
                 overview.classList.remove('is-hidden');
             }
@@ -114,7 +114,7 @@ function initPrivacyPanelTransition(doc) {
 
     patchPrivacyVisibility();
 
-    // Кнопка «Назад» — focus management
+    // The Back button — focus management
     const backBtn = doc.getElementById('privacyDetailBackBtn');
     if (backBtn) {
         backBtn.addEventListener('click', () => {
@@ -126,7 +126,7 @@ function initPrivacyPanelTransition(doc) {
     }
 }
 
-/* ── 4. Swipe-back жест для мобильного детального вида ──────────────────── */
+/* ── 4. Swipe-back gesture for the mobile detail view ──────────────────── */
 function initSwipeBack(doc) {
     if (!('ontouchstart' in window)) return;
 
@@ -141,7 +141,7 @@ function initSwipeBack(doc) {
         const touch = e.touches[0];
         startX = touch.clientX;
         startY = touch.clientY;
-        tracking = startX < 36; // только edge-свайп
+        tracking = startX < 36; // edge swipe only
     }, { passive: true });
 
     panelBody.addEventListener('touchmove', e => {
@@ -160,16 +160,16 @@ function initSwipeBack(doc) {
 
         const dx = e.changedTouches[0].clientX - startX;
         if (dx > 72 && startX < 36) {
-            // Ищем кнопку «назад» в privacy detail или кнопку закрытия секции
+            // Find the back button in the privacy detail or the section close button
             const backBtn = doc.getElementById('privacyDetailBackBtn');
             if (backBtn && !doc.getElementById('privacyDetailPanel')?.classList.contains('settings-hidden')) {
                 backBtn.click();
                 return;
             }
-            // Возврат на home
+            // Back to home
             const closeBtn = doc.getElementById('settingsPanelCloseBtn');
             if (doc.body.classList.contains('settings-detail-open')) {
-                // Имитируем навигацию назад — ищем функцию навигации
+                // Emulate back navigation — find the navigation function
                 document.dispatchEvent(new CustomEvent('sun-settings-navigate', {
                     detail: { section: 'settings' },
                     bubbles: false,
@@ -185,7 +185,7 @@ function initMnemonicPasteAll(doc) {
     const unlockBody = doc.getElementById('mnemonicUnlockBody');
     if (!grid || !unlockBody) return;
 
-    // Добавляем кнопку paste-all перед grid
+    // Add the paste-all button before the grid
     if (doc.getElementById('mnemonicPasteAllBtn')) return;
 
     const actionsWrap = doc.createElement('div');
@@ -250,7 +250,7 @@ function initMnemonicPasteAll(doc) {
     }
 }
 
-/* ── 6. Floating save — добавляем label если его нет ─────────────────────── */
+/* ── 6. Floating save — add a label when missing ─────────────────────── */
 function initFloatingSaveLabel(doc) {
     const fab = doc.querySelector('.settings-scene .settings-floating-save');
     if (!fab) return;
@@ -267,7 +267,7 @@ function initFloatingSaveLabel(doc) {
     }
 }
 
-/* ── 7. Online indicator — показываем зелёную точку если онлайн ──────────── */
+/* ── 7. Online indicator — show a green dot when online ──────────── */
 function initOnlineIndicator(doc) {
     const avatarWrap = doc.querySelector(
         'body.settings-home-open .settings-nav-avatar-wrap, .settings-nav-avatar-wrap'
@@ -276,7 +276,7 @@ function initOnlineIndicator(doc) {
     if (onlineIndicatorTargets.has(avatarWrap)) return;
     onlineIndicatorTargets.add(avatarWrap);
 
-    // Используем socket presence или просто navigator.onLine
+    // Use socket presence or plain navigator.onLine
     function updateOnlineState() {
         if (navigator.onLine) {
             avatarWrap.classList.add('is-online');
@@ -290,7 +290,7 @@ function initOnlineIndicator(doc) {
     window.addEventListener('offline', updateOnlineState);
 }
 
-/* ── 8. Nav scroll fade — синхронизируем маску с позицией скролла ─────────── */
+/* ── 8. Nav scroll fade — sync the mask with the scroll position ─────────── */
 function initNavScrollFade(doc) {
     const navList = doc.querySelector('.settings-scene .settings-nav-list');
     if (!navList) return;
@@ -308,7 +308,7 @@ function initNavScrollFade(doc) {
     updateFade();
 }
 
-/* ── 9. MutationObserver — переинициализация при смене body-класса ──────── */
+/* ── 9. MutationObserver — re-init on body class change ──────── */
 function observeSettingsSections(doc) {
     if (!doc.body || observedSettingsBodies.has(doc.body)) return;
     observedSettingsBodies.add(doc.body);
@@ -358,7 +358,7 @@ function observeSettingsSections(doc) {
 
     observer.observe(doc.body, { attributes: true, attributeFilter: ['class'], subtree: false });
 
-    // Первичный проход
+    // Initial pass
     setTimeout(() => {
         doc.querySelectorAll('.settings-scene .toggle').forEach(toggle => {
             const input = toggle.querySelector('input');

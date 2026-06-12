@@ -143,7 +143,7 @@ export function initDevicesSection({
         } catch (_err) {
             if (loadSeq !== sessionDevicesLoadSeq) return;
             sessionDevicesListEl.innerHTML = `<div class="session-device-empty">${escapeHtml(tr('Сетевая ошибка при загрузке сессий.'))}</div>`;
-            // Баг 5 fix: скрываем кнопку при ошибке загрузки
+            // Bug 5 fix: hide the button on load failure
             updateSignOutBtn(0);
         }
     }
@@ -159,21 +159,21 @@ export function initDevicesSection({
         const nameDisplay = browser ? `${escapeHtml(info.name)} · ${escapeHtml(browser)}` : escapeHtml(info.name);
         const location = device.ip ? `IP ${escapeHtml(device.ip)}` : escapeHtml(tr('IP скрыт'));
         const lastActive = formatSessionTimestamp(device.last_used_at);
-        // Баг 2 fix: _formatExpiry только для persistent-сессий
+        // Bug 2 fix: _formatExpiry only for persistent sessions
         const sessionAge = device.persistent ? _formatExpiry(device.expires_at) : tr('Сессия');
 
         const pills = [];
         if (isCurrent) pills.push(`<span class="session-device-pill session-device-pill--current">${escapeHtml(tr('Текущая'))}</span>`);
         pills.push(`<span class="session-device-pill">${escapeHtml(sessionAge)}</span>`);
 
-        // Баг 3 fix: для веб-сессии без family_id (fallback) показываем кнопку выхода через /logout
+        // Bug 3 fix: for a web session without family_id (fallback) show a logout button via /logout
         let actionHtml;
         if (device.family_id) {
             actionHtml = `<button type="button" class="session-revoke-btn${isCurrent ? ' session-revoke-btn--current' : ''}" data-family-id="${escapeHtml(device.family_id)}" data-current="${isCurrent ? '1' : '0'}">
                 ${escapeHtml(tr(isCurrent ? 'Выйти' : 'Завершить'))}
             </button>`;
         } else if (isCurrent) {
-            // Текущая сессия без refresh-cookie — можно только разлогиниться
+            // Current session without a refresh cookie — logging out is the only option
             actionHtml = `<button type="button" class="session-revoke-btn session-revoke-btn--current" data-logout="1">
                 ${escapeHtml(tr('Выйти'))}
             </button>`;
@@ -209,7 +209,7 @@ export function initDevicesSection({
         const btn = target.closest('.session-revoke-btn');
         if (!btn) return;
 
-        // Баг 3 fix: обработка кнопки выхода для веб-сессии без cookie
+        // Bug 3 fix: handle the logout button for a cookieless web session
         if (btn.dataset.logout === '1') {
             const ok = await showConfirmDialog({
                 title: tr('Выйти с этого устройства?'),
@@ -228,7 +228,7 @@ export function initDevicesSection({
         const isCurrent = btn.getAttribute('data-current') === '1';
         if (!familyId) return;
 
-        // Баг 1 fix: правильный параметр — message, не body
+        // Bug 1 fix: the right parameter is message, not body
         const ok = await showConfirmDialog({
             title: tr(isCurrent ? 'Выйти с этого устройства?' : 'Завершить эту сессию?'),
             message: isCurrent
@@ -244,7 +244,7 @@ export function initDevicesSection({
         try {
             const data = await api.revokeSessionDevice(familyId);
             if (data.signed_out_current) {
-                // Баг 4 fix: return до finally чтобы не разблокировать кнопку перед редиректом
+                // Bug 4 fix: return before finally so the button is not re-enabled before the redirect
                 navigateOut('/');
                 return;
             }
@@ -257,7 +257,7 @@ export function initDevicesSection({
     });
 
     signOutOtherSessionsBtn?.addEventListener('click', async function () {
-        // Баг 1 fix: правильный параметр — message, не body
+        // Bug 1 fix: the right parameter is message, not body
         const ok = await showConfirmDialog({
             title: tr('Завершить все другие сессии?'),
             message: tr('Все устройства, кроме текущего, будут отключены от аккаунта.'),

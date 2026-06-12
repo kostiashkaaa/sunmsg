@@ -1,12 +1,12 @@
 /* ============================================================
    MOTION LAYER v2 - SUN messenger motion
-   Принципы:
-   • только transform + opacity (compositor-only)
+   Principles:
+   • transform + opacity only (compositor-only)
    - Standard easing: cubic-bezier(.4, 0, .2, 1)
-   • единая шкала durations: 120–560ms
-   • will-change точечно перед анимацией, снимается классом
-   • contain для изолированных слоёв
-   • prefers-reduced-motion переводит в strict-режим только на motion-level=lite
+   • a single duration scale: 120–560ms
+   • will-change applied narrowly before animating, removed via a class
+   • contain for isolated layers
+   • prefers-reduced-motion switches to strict mode only at motion-level=lite
    ============================================================ */
 
 :root {
@@ -172,7 +172,7 @@ html[data-motion-level="lite"] {
     --motion-ease-pop: var(--motion-ease-standard);
 }
 
-/* ───────────── Глобальные keyframes ───────────── */
+/* ───────────── Global keyframes ───────────── */
 @keyframes m-fade-in       { from { opacity: 0; } to { opacity: 1; } }
 @keyframes m-fade-out      { from { opacity: 1; } to { opacity: 0; } }
 @keyframes m-rise-soft     { from { opacity: 0; transform: translate3d(0, 10px, 0); } to { opacity: 1; transform: translate3d(0,0,0); } }
@@ -183,7 +183,7 @@ html[data-motion-level="lite"] {
 @keyframes m-modal-out     { from { opacity: 1; transform: translate3d(0,0,0) scale(1); } to { opacity: 0; transform: translate3d(0, 16px, 0) scale(0.95); } }
 @keyframes m-shimmer       { 0% { background-position: -360px 0; } 100% { background-position: 360px 0; } }
 
-/* ───────────── 1. Подтверждающий диалог ───────────── */
+/* ───────────── 1. Confirm dialog ───────────── */
 #confirmActionModal[open] {
     animation: m-modal-in var(--m-dur-medium) var(--m-decel) both;
     will-change: transform, opacity;
@@ -197,11 +197,11 @@ html[data-motion-level="lite"] {
 
 /* Profile drawer surface motion lives in motion-v3.css. */
 
-/* ───────────── 5. Переход между чатами ─────────────
-   Новая реализация lives in motion-v3.css. */
+/* ───────────── 5. Chat-to-chat transition ─────────────
+   The new implementation lives in motion-v3.css. */
 
-/* Sidebar reaction — контакт пульсирует при выборе.
-   Псевдоэлемент с opacity — compositor-only, нет Paint. */
+/* Sidebar reaction — the contact pulses on selection.
+   A pseudo-element with opacity — compositor-only, no Paint. */
 .contact-item {
     isolation: isolate;
 }
@@ -225,7 +225,7 @@ html[data-motion-level="lite"] {
     100% { opacity: 0; }
 }
 
-/* ───────────── 6. Сообщения (B+E) ───────────── */
+/* ───────────── 6. Messages (B+E) ───────────── */
 .message {
     contain: layout paint;
 }
@@ -241,12 +241,12 @@ html[data-motion-level="lite"] {
     animation-timing-function: var(--m-bouncy) !important;
     animation-duration: var(--m-dur-base) !important;
 }
-/* Входящее сообщение — пузырь появляется слева снизу */
+/* Incoming message — the bubble appears from bottom-left */
 .message.msg-animate-in:not(.msg-animate-self) .bubble {
     animation: m-bubble-in-other var(--m-dur-base) var(--m-decel) both;
     transform-origin: bottom left;
 }
-/* Своё сообщение — пузырь появляется справа снизу с overshoot */
+/* Own message — the bubble appears from bottom-right with overshoot */
 .message.msg-animate-in.msg-animate-self .bubble {
     animation: m-bubble-in-self 280ms var(--m-bouncy) both;
     transform-origin: bottom right;
@@ -261,14 +261,14 @@ html[data-motion-level="lite"] {
     to   { opacity: 1; transform: scale(1)    translate3d(0,   0,   0); }
 }
 
-/* Чекмарки read — мягкий pop */
+/* Read checkmarks — a soft pop */
 .bubble .check-glyph,
 .message-status .check-glyph,
 .sun-check-glyph {
     transition: transform var(--m-dur-base) var(--m-bouncy), opacity var(--m-dur-base) var(--m-decel);
 }
 
-/* Реакция-пилюля — bouncy pop при добавлении */
+/* Reaction pill — a bouncy pop when added */
 .reaction-pill,
 [data-reaction-pill] {
     transition:
@@ -285,7 +285,7 @@ html[data-motion-level="lite"] {
 [data-reaction-pill].reaction-just-added {
     animation: m-pop var(--m-dur-medium) var(--m-bouncy) both;
 }
-/* Pop при первом появлении — без JS */
+/* Pop on first appearance — no JS */
 .message-reactions.has-items > .reaction-pill {
     animation: m-pop var(--m-dur-fast) var(--m-bouncy) both;
 }
@@ -372,13 +372,13 @@ html[data-motion-level="lite"] {
     html[data-motion-level="lite"] .message-reactions.has-items > .reaction-pill { animation: none !important; }
 }
 
-/* Typing indicator dot bounce — уже есть свой keyframe; усиливаем easing */
+/* Typing indicator dot bounce — already has its keyframe; strengthen the easing */
 .typing-indicator,
 .typing-dots {
     will-change: transform;
 }
 
-/* ───────────── 7. Подгрузка истории (G — shimmer) ───────────── */
+/* ───────────── 7. History loading (G — shimmer) ───────────── */
 .chat-messages.is-loading-history::before {
     content: "";
     position: sticky;
@@ -404,15 +404,15 @@ html[data-motion-level="lite"] {
     animation: m-rise-soft var(--m-dur-medium) var(--m-decel) both;
 }
 
-/* ───────────── 8. Контактные элементы (B+C) ───────────── */
+/* ───────────── 8. Contact items (B+C) ───────────── */
 .contact-item {
     transition:
         background-color var(--m-dur-fast) var(--m-spring),
         transform var(--m-dur-fast) var(--m-spring);
     contain: layout paint;
 }
-/* will-change только во время реальной анимации — не для всех элементов
-   списка контактов одновременно (иначе постоянные compositor-layer'ы) */
+/* will-change only during an actual animation — not for every contact-list
+   item at once (otherwise permanent compositor layers) */
 .contact-item:active {
     will-change: transform;
 }
@@ -429,7 +429,7 @@ html[data-motion-level="lite"] {
 .contact-item:active { transform: scale(var(--m-press-scale-soft)) translate3d(0,0,0); }
 .contact-item.active { transform: none; }
 
-/* ───────────── 9. Кнопки + Tactile press (C) ───────────── */
+/* ───────────── 9. Buttons + tactile press (C) ───────────── */
 .icon-btn,
 .composer-btn,
 .header-action,
@@ -452,8 +452,8 @@ button.btn,
         box-shadow var(--m-dur-base) var(--m-spring),
         opacity var(--m-dur-fast) var(--m-spring);
 }
-/* will-change только на момент нажатия — не держим compositor-layer
-   постоянно для всех кнопок интерфейса */
+/* will-change only while pressed — we do not hold a compositor layer
+   permanently for every UI button */
 .icon-btn:active,
 .composer-btn:active,
 .header-action:active,
@@ -490,7 +490,7 @@ button.btn:active,
     transition-duration: var(--m-dur-instant);
 }
 
-/* ───────────── 10. Тосты ───────────── */
+/* ───────────── 10. Toasts ───────────── */
 .toast,
 .app-toast,
 [data-toast] {
@@ -500,7 +500,7 @@ button.btn:active,
     will-change: transform, opacity;
 }
 
-/* ───────────── 10b. Мобильный sidebar↔chat ───────────── */
+/* ───────────── 10b. Mobile sidebar↔chat ───────────── */
 @media (max-width: 768px) {
     .chat-area.mobile-open {
         transition:
@@ -530,7 +530,7 @@ button.btn:active,
     }
 }
 
-/* ───────────── 11. Settings секции ───────────── */
+/* ───────────── 11. Settings sections ───────────── */
 .settings-section,
 .settings-panel {
     transition:
@@ -539,7 +539,7 @@ button.btn:active,
     will-change: transform, opacity;
 }
 
-/* ───────────── 12. Skeleton-плейсхолдеры (G) ───────────── */
+/* ───────────── 12. Skeleton placeholders (G) ───────────── */
 .m-skeleton {
     background: linear-gradient(
         90deg,
@@ -564,7 +564,7 @@ button.btn:active,
 }
 
 /* ───────────── 13. Smooth scroll (F) ───────────── */
-/* НЕ применяем к .chat-messages — там виртуализация и прямые scrollTop=N */
+/* NOT applied to .chat-messages — it has virtualization and direct scrollTop=N */
 .contacts-list,
 .sidebar-scroll,
 .profile-drawer-scroll,
@@ -589,7 +589,7 @@ img.is-loaded,
     transition: opacity var(--m-dur-base) var(--m-decel);
 }
 
-/* ───────────── 18. Композер: input focus glow ───────────── */
+/* ───────────── 18. Composer: input focus glow ───────────── */
 .composer,
 .message-input-wrap,
 [data-composer] {
@@ -599,9 +599,9 @@ img.is-loaded,
         background-color var(--m-dur-base) var(--m-spring);
 }
 
-/* ───────────── 20. content-visibility для невидимых сообщений ───────────── */
-/* Отключено: конфликтует с виртуализацией .chat-messages и срывает msg-animate-in
-   у только что появившихся сообщений. Виртуализация уже сама не пейнтит off-screen. */
+/* ───────────── 20. content-visibility for off-screen messages ───────────── */
+/* Disabled: conflicts with .chat-messages virtualization and breaks msg-animate-in
+   on freshly appeared messages. Virtualization already avoids painting off-screen. */
 
 /* ───────────── 21. View Transitions API (Chrome 111+) ───────────── */
 @supports (view-transition-name: none) {
@@ -658,7 +658,7 @@ img.is-loaded,
     animation: m-header-dropdown-close 120ms var(--m-accel) both;
 }
 
-/* ───────────── 23. Hover только на hover-устройствах ───────────── */
+/* ───────────── 23. Hover on hover-capable devices only ───────────── */
 @media (hover: none) {
     .contact-item:hover { transform: none; background-color: inherit; }
     .icon-btn:hover,
@@ -699,7 +699,7 @@ button.btn:focus-visible,
     border-radius: inherit;
 }
 
-/* ───────────── 30. Overscroll-behavior: не ловим pull-to-refresh ───────────── */
+/* ───────────── 30. Overscroll-behavior: no pull-to-refresh capture ───────────── */
 .chat-messages,
 .contacts-list,
 .sidebar-scroll,
@@ -708,7 +708,7 @@ button.btn:focus-visible,
     overscroll-behavior: contain;
 }
 
-/* ───────────── 31. Tap-target ≥ 44px на мобильных (Apple HIG) ───────────── */
+/* ───────────── 31. Tap target ≥ 44px on mobile (Apple HIG) ───────────── */
 @media (max-width: 768px) {
     .icon-btn,
     .composer-btn,
@@ -718,8 +718,8 @@ button.btn:focus-visible,
     .emoji-btn,
     .voice-btn,
     .profile-action,
-    /* .reaction-pill исключён — он не одиночная кнопка действия,
-       а компактный badge-индикатор (как в мессенджере, ~22-24px). */
+    /* .reaction-pill is excluded — it is not a standalone action button
+       but a compact badge indicator (messenger-style, ~22-24px). */
     .message-action,
     .sidebar-tab {
         min-width: 44px;
@@ -727,7 +727,7 @@ button.btn:focus-visible,
     }
 }
 
-/* ───────────── 24. Composer focus glow на GPU (transform/opacity) ───────────── */
+/* ───────────── 24. Composer focus glow on the GPU (transform/opacity) ───────────── */
 .composer,
 .message-input-wrap,
 [data-composer] {
@@ -763,12 +763,12 @@ button.btn:focus-visible,
 .avatar img,
 .lightbox-image,
 .profile-avatar img {
-    /* Изображения: пока грузятся — opacity 0; .is-loaded или [data-loaded] включает */
+    /* Images: opacity 0 while loading; .is-loaded or [data-loaded] turns them on */
     transition: opacity var(--m-dur-medium) var(--m-decel);
 }
 
-/* ───────────── 26. transition: all → конкретные свойства (override) ───────────── */
-/* Override для трёх мест в style.css/chat.css/auth.css/settings.css где remained transition: all */
+/* ───────────── 26. transition: all → specific properties (override) ───────────── */
+/* Override for the three spots in style.css/chat.css/auth.css/settings.css where transition: all remained */
 .btn,
 button.btn,
 .dialog-primary-btn,
@@ -785,9 +785,9 @@ select {
         opacity var(--m-dur-fast) var(--m-spring);
 }
 
-/* ───────────── 27. Bubble hover lift (только на desktop) ─────────────
-   Транзишен НЕ включает box-shadow: на бабблах не должно быть
-   blurred-теней (это hot-path при скролле истории). */
+/* ───────────── 27. Bubble hover lift (desktop only) ─────────────
+   The transition does NOT include box-shadow: bubbles must not have
+   blurred shadows (a hot path when scrolling history). */
 @media (hover: hover) {
     .message .bubble {
         transition:
@@ -947,8 +947,8 @@ select {
 }
 
 /* Desktop motion standard.
-   Использует те же 6 длительностей и 4 easing, что и мобайл — отличается
-   только направлением и амплитудой transform, потому что десктоп шире. */
+   Uses the same 6 durations and 4 easings as mobile — differs only in
+   transform direction and amplitude, because desktop is wider. */
 @media (min-width: 769px) {
     .header-search-wrap,
     #confirmActionModal {
@@ -1014,7 +1014,7 @@ select {
             visibility 0s linear var(--m-dur-medium);
     }
 
-    /* Profile stagger на десктопе — сильнее, чем было, ближе к мобильной плавности */
+    /* Profile stagger on desktop — stronger than before, closer to mobile smoothness */
     .profile-drawer.profile-content-revealing .profile-hero,
     .profile-drawer.profile-content-revealing .profile-info-card,
     .profile-drawer.profile-content-revealing .profile-media-section {

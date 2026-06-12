@@ -312,11 +312,11 @@ body:not(.settings-embed-mode) .settings-scene {
     font-size: 11px !important;
 }
 
-/* ── Side-panel: ширина ─────────────────────────────────────────────── */
+/* ── Side panel: width ─────────────────────────────────────────────── */
 .settings-overlay-panel {
     width: clamp(380px, 36vw, 480px) !important;
 }
-/* На мобилке (≤960px) базовый layout.css уже ставит 100vw — не перебиваем */
+/* On mobile (≤960px) the base layout.css already sets 100vw — do not override */
 @media (max-width: 960px) {
     .settings-overlay-panel {
         width: min(100vw, 100%) !important;
@@ -324,7 +324,7 @@ body:not(.settings-embed-mode) .settings-scene {
     }
 }
 
-/* ── Home + detail: панель полностью прозрачная, острова поверх ─────── */
+/* ── Home + detail: a fully transparent panel, islands on top ─────── */
 body.settings-home-open .settings-overlay-panel,
 body.settings-detail-open .settings-overlay-panel {
     background: transparent !important;
@@ -347,7 +347,7 @@ body.settings-detail-open .settings-layout {
     box-shadow: none !important;
 }
 
-/* panel-head — остров 1 */
+/* panel-head — island 1 */
 body.settings-home-open .settings-scene .settings-panel-head,
 body.settings-detail-open .settings-scene .settings-panel-head {
     background: var(--sx-bg-elev, var(--surface)) !important;
@@ -355,7 +355,7 @@ body.settings-detail-open .settings-scene .settings-panel-head {
     border: none !important;
 }
 
-/* settings-content — остров 2 (фон задаётся в home-composition.css) */
+/* settings-content — island 2 (background set in home-composition.css) */
 body.settings-detail-open .settings-scene .settings-content {
     background: var(--sx-bg-elev, var(--surface)) !important;
 }

@@ -892,7 +892,7 @@ async function _checkOwnSpotifyConnected() {
 }
 
 function _showSpotifyConnectToast() {
-    // Ищем существующий toast-контейнер приложения
+    // Find the app's existing toast container
     const existingToast = document.getElementById('spotifyConnectToast');
     if (existingToast) {
         existingToast.classList.remove('spotify-toast--hidden');

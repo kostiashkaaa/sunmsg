@@ -1,6 +1,6 @@
-// Forward (пересылка) flow: модальное окно выбора чата, превью драфта,
-// шифрование под получателя, отправка. Вынесено из chat.js без изменения
-// поведения — все внешние зависимости приходят через deps.
+// Forward flow: chat picker modal, draft preview,
+// per-recipient encryption, sending. Extracted from chat.js with no behavior
+// change — all external dependencies come in via deps.
 
 import { applyEmojiGraphics, buildAvatarInitials, escapeHtml, generateRequestId } from './utils.js';
 import { withStableChatScroll } from './chat-scroll-stability.js';

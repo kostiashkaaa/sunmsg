@@ -305,9 +305,9 @@
         } catch (_) {}
     }
 
-    // ── X25519 + Ed25519 ключи (crypto v2) ──────────────────────────────────────
-    // Приватные ключи хранятся как зашифрованный JSON (те же механизмы обёртки).
-    // Публичные ключи хранятся открыто в localStorage (не секрет).
+    // ── X25519 + Ed25519 keys (crypto v2) ──────────────────────────────────────
+    // Private keys are stored as encrypted JSON (same wrapping mechanisms).
+    // Public keys are stored in plain localStorage (not secret).
 
     const LS_V2_PUBLIC_KEYS = 'sun_v2_public_keys';
     const SS_V2_PRIVATE_KEYS_SESSION = 'sun_v2_private_keys_session';
@@ -333,7 +333,7 @@
     async function storeV2KeyPair(keyPair, options = {}) {
         const persistent = options?.persistent === true;
 
-        // Публичные ключи в localStorage (не секрет)
+        // Public keys in localStorage (not secret)
         try {
             localStorage.setItem(LS_V2_PUBLIC_KEYS, JSON.stringify({
                 x25519: keyPair.x25519.publicKeyB64u,
@@ -341,7 +341,7 @@
             }));
         } catch (_) {}
 
-        // Приватные ключи зашифрованы через device key
+        // Private keys are encrypted with the device key
         const privJson = JSON.stringify({
             x25519Jwk: keyPair.x25519.privateKeyJwk,
             ed25519Jwk: keyPair.ed25519.privateKeyJwk,

@@ -96,7 +96,7 @@
         width: min(760px, 100%);
     }
 
-    /* ── Общее для home и detail: панель прозрачная, острова поверх ── */
+    /* ── Shared by home and detail: transparent panel, islands on top ── */
     body.settings-home-open .settings-layout,
     body.settings-home-open .settings-overlay-frame,
     body.settings-home-open .settings-scene,
@@ -106,14 +106,14 @@
         background: transparent !important;
         box-shadow: none !important;
     }
-    /* Layout: padding по бокам — шапка и блоки в body выровнены */
+    /* Layout: side padding — the header and body blocks align */
     body.settings-home-open .settings-layout,
     body.settings-detail-open .settings-layout {
         padding: 10px 12px 0 !important;
         box-sizing: border-box !important;
     }
 
-    /* Шапка — остров 1. Горизонтальные отступы через padding на body, ширина 100% */
+    /* Header — island 1. Horizontal insets via body padding, width 100% */
     body.settings-home-open .settings-panel-head,
     body.settings-detail-open .settings-panel-head {
         width: 100% !important;
@@ -136,7 +136,7 @@
         box-sizing: border-box !important;
     }
 
-    /* Контент вкладки — остров 2, 100% ширины (padding уже на body) */
+    /* Tab content — island 2, 100% width (padding already on body) */
     body.settings-detail-open .settings-content {
         width: 100%;
         box-sizing: border-box;

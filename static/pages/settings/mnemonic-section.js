@@ -15,9 +15,9 @@ export function initMnemonicSection({
     const syncMnemonicUnlockUi = () => {
         if (!mnemonicUnlockCard || !e2eStatusCard) return;
         const unlocked = hasRuntimePrivateKey({ isEmbedMode });
-        // Карточку восстановления 24 слов держим доступной ВСЕГДА —
-        // как в мессенджере, восстановить доступ можно в любой момент.
-        // Когда ключ уже активен, карточка просто сворачивается.
+        // Keep the 24-word recovery card available AT ALL TIMES —
+        // messenger-style, access can be restored at any moment.
+        // When the key is already active the card simply collapses.
         mnemonicUnlockCard.style.display = '';
         mnemonicUnlockCard.classList.toggle('mnemonic-card-unlocked', unlocked);
         e2eStatusCard.style.display = unlocked ? 'none' : 'block';
@@ -48,8 +48,8 @@ export function initMnemonicSection({
         mnemonicGrid.appendChild(wrap);
     }
 
-    // «Восстановить заново» — разворачивает форму ввода 24 слов,
-    // даже если доступ уже активен (повторное восстановление на устройстве).
+    // "Restore again" — expands the 24-word input form,
+    // even when access is already active (re-restore on this device).
     document.getElementById('mnemonicReunlockBtn')?.addEventListener('click', () => {
         mnemonicUnlockCard?.classList.add('mnemonic-card-reunlock');
         document.querySelector('.mnemonic-word-input')?.focus();
@@ -62,8 +62,8 @@ export function initMnemonicSection({
         if (!words.length) return;
 
         const inputs = Array.from(mnemonicGrid.querySelectorAll('input'));
-        // Раскладку начинаем с того поля, в которое реально вставляют
-        // (а не всегда с первого). Если фокуса нет — с первого.
+        // Start filling from the field the user actually pasted into
+        // (not always the first one). With no focus — from the first.
         const target = event.target.closest('.mnemonic-word-input');
         const startIdx = target ? inputs.indexOf(target) : 0;
 
@@ -72,8 +72,8 @@ export function initMnemonicSection({
             if (input) input.value = word.toLowerCase();
         });
 
-        // Курсор переводим на следующее незаполненное поле, чтобы
-        // продолжить ввод/вставку дальше по сетке.
+        // Move the cursor to the next empty field so the user can
+        // continue typing/pasting down the grid.
         const next = inputs[startIdx + words.length] || inputs[inputs.length - 1];
         next?.focus();
     });

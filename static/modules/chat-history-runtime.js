@@ -183,7 +183,7 @@ export function createChatHistoryRuntime(ctx = {}) {
                 decryptWorkerFailed = true;
                 console.warn('[decrypt-worker] Permanently disabled after', decryptWorkerFailCount, 'failures.');
             } else {
-                // Разрешаем повторную инициализацию через задержку
+                // Allow re-initialization after a delay
                 decryptWorkerFailed = true;
                 setTimeout(() => {
                     decryptWorkerFailed = false;

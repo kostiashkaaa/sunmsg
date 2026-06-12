@@ -3664,7 +3664,7 @@ body.settings-detail-open .settings-overlay-frame {
             z-index: 3;
             backdrop-filter: blur(14px) saturate(118%);
             -webkit-backdrop-filter: blur(14px) saturate(118%);
-            /* Единая горизонтальная сетка с .sidebar-header */
+            /* A shared horizontal grid with .sidebar-header */
             min-height: var(--header-h);
             box-sizing: border-box;
         }

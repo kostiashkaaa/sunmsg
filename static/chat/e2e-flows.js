@@ -52,7 +52,7 @@ function _syncE2eeStatusBadge({
     const proto = _detectProtoFromState(state);
     if (proto) {
         ui.setStatus(proto);
-        // Обновить ключи для диалога верификации
+        // Refresh keys for the verification dialog
         const peerRsaKey = typeof getCurrentContactPublicKey === 'function'
             ? getCurrentContactPublicKey() : null;
         const peerName = typeof getCurrentPartnerDisplayName === 'function'
@@ -68,7 +68,7 @@ function _syncE2eeStatusBadge({
 
 function _detectProtoFromState(state) {
     if (!state || !Array.isArray(state.messages) || !state.messages.length) return null;
-    // Ищем последнее сообщение с зашифрованным payload
+    // Find the latest message with an encrypted payload
     for (let i = state.messages.length - 1; i >= 0; i--) {
         const msg = state.messages[i];
         const raw = msg?.message || msg?.raw_message || msg?.content || '';

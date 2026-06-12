@@ -29,7 +29,7 @@ function _isContainerHidden(container) {
 export function activateFocusTrap(container) {
     if (!container) return;
 
-    // Приостанавливаем текущий верхний трап (не удаляем — восстановим при deactivate)
+    // Pause the current top trap (not removed — restored on deactivate)
     const top = _trapStack[_trapStack.length - 1];
     if (top) {
         document.removeEventListener('keydown', top.keyHandler, true);
@@ -80,14 +80,14 @@ export function deactivateFocusTrap(container = null) {
     const removed = _trapStack.splice(idx, 1)[0];
     document.removeEventListener('keydown', removed.keyHandler, true);
 
-    // Восстанавливаем предыдущий трап, если он есть
+    // Restore the previous trap if there is one
     const next = _trapStack[_trapStack.length - 1];
     if (next) {
         document.addEventListener('keydown', next.keyHandler, true);
         return;
     }
 
-    // Возвращаем фокус туда, где он был до открытия первого трапа
+    // Return focus to where it was before the first trap opened
     const prev = removed.previouslyFocused;
     if (prev && document.contains(prev)) {
         prev.focus({ preventScroll: true });

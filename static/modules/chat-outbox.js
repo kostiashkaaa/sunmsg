@@ -57,7 +57,7 @@ export async function openOutbox(userId) {
     const normalized = normalizeUserId(userId);
     if (!normalized || !canUseIndexedDb()) return null;
     if (activeDb && activeUserId === normalized) return activeDb;
-    // Если уже идёт открытие — ждём его завершения, не запускаем параллельное
+    // If an open is already in flight, await it instead of starting a parallel one
     if (_openingPromise) return _openingPromise;
     _openingPromise = (async () => {
         if (activeDb) await closeOutbox();

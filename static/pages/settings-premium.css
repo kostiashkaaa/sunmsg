@@ -1,12 +1,12 @@
 /* =============================================================================
    settings-premium.css — PREMIUM POLISH LAYER v2
-   Закрывает все проблемы аудита: toggle, inputs, range, animations,
+   Closes all audit findings: toggle, inputs, range, animations,
    accessibility, consistency, mobile UX, desktop UX.
-   Загружается последним — после settings-polish.css.
-   Область применения: .settings-scene (не затрагивает остальной чат).
+   Loads last — after settings-polish.css.
+   Scope: .settings-scene (does not touch the rest of the chat).
    ============================================================================= */
 
-/* ── 1. CSS-ПЕРЕМЕННАЯ СИСТЕМА — единая шкала для Settings ─────────────────── */
+/* ── 1. CSS VARIABLE SYSTEM — a single scale for Settings ─────────────────── */
 
 .settings-scene {
     /* Icon sizes */
@@ -122,7 +122,7 @@
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--s-accent) 12%, transparent) !important;
 }
 
-/* ── 3. INPUTS — modern floating-label style с border ───────────────────────── */
+/* ── 3. INPUTS — modern floating-label style with border ───────────────────────── */
 
 .settings-scene .settings-input {
     border: 1.5px solid transparent !important;
@@ -173,7 +173,7 @@
     width: min(160px, 100%) !important;
 }
 
-/* ── 4. RANGE INPUT — полностью кастомный с progress-fill ───────────────────── */
+/* ── 4. RANGE INPUT — fully custom with progress fill ───────────────────── */
 
 .settings-scene input[type="range"] {
     -webkit-appearance: none !important;
@@ -247,7 +247,7 @@
     font-family: var(--font-mono, monospace) !important;
 }
 
-/* ── 5. SELECT — кастомный chevron без gradient-треугольников ───────────────── */
+/* ── 5. SELECT — a custom chevron without gradient triangles ───────────────── */
 
 .settings-scene select.settings-select-control {
     -webkit-appearance: none !important;
@@ -267,7 +267,7 @@
         border-color var(--s-dur-fast) var(--s-ease),
         background-color var(--s-dur-fast) var(--s-ease),
         box-shadow var(--s-dur-fast) var(--s-ease) !important;
-    /* SVG chevron — чистый, anti-aliased */
+    /* SVG chevron — clean, anti-aliased */
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'><path d='M2.5 4.5L6 8L9.5 4.5' stroke='%23888' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
     background-repeat: no-repeat !important;
     background-position: right 10px center !important;
@@ -292,7 +292,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'><path d='M2.5 4.5L6 8L9.5 4.5' stroke='%23aaa' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>") !important;
 }
 
-/* ── 6. PRIVACY DETAIL — плавный crossfade вместо display:none ──────────────── */
+/* ── 6. PRIVACY DETAIL — a smooth crossfade instead of display:none ──────────────── */
 
 .settings-scene #privacyOverviewPanel,
 .settings-scene #privacyDetailPanel {
@@ -330,18 +330,18 @@ body.dark-mode .settings-scene select.settings-select-control {
     overflow: hidden !important;
 }
 
-/* ── 7. CARD — убираем hover на весь блок, только на строки ────────────────── */
+/* ── 7. CARD — drop hover on the whole block, rows only ────────────────── */
 
 .settings-scene .settings-card {
     transition: box-shadow var(--s-dur-fast) var(--s-ease) !important;
 }
 
-/* Убираем hover на карточку-контейнер (выглядит дёшево) */
+/* Remove hover on the card container (looks cheap) */
 .settings-scene .settings-card:hover {
     background: var(--sx-bg-elev, var(--paper)) !important;
 }
 
-/* Hover только на интерактивных строках */
+/* Hover only on interactive rows */
 .settings-scene .settings-row {
     transition: background-color var(--s-dur-fast) var(--s-ease) !important;
 }
@@ -350,13 +350,13 @@ body.dark-mode .settings-scene select.settings-select-control {
     background: color-mix(in srgb, var(--s-surface-soft) 55%, transparent) !important;
 }
 
-/* Строки с только текстом (no interactive control) — no hover */
+/* Text-only rows (no interactive control) — no hover */
 .settings-scene .settings-row.settings-row-info-only:hover {
     background: transparent !important;
     cursor: default !important;
 }
 
-/* ── 8. FLOATING SAVE — pill с текстовым label ─────────────────────────────── */
+/* ── 8. FLOATING SAVE — a pill with a text label ─────────────────────────────── */
 
 .settings-scene .settings-floating-save {
     width: auto !important;
@@ -370,13 +370,13 @@ body.dark-mode .settings-scene select.settings-select-control {
     letter-spacing: 0.01em !important;
 }
 
-/* Label скрыт до появления кнопки — появляется вместе с ней */
+/* The label stays hidden until the button appears — they show together */
 .settings-scene .settings-floating-save-label {
     display: inline !important;
     white-space: nowrap !important;
 }
 
-/* На очень узких экранах — только иконка */
+/* On very narrow screens — icon only */
 @media (max-width: 380px) {
     .settings-scene .settings-floating-save {
         width: 52px !important;
@@ -388,10 +388,10 @@ body.dark-mode .settings-scene select.settings-select-control {
     }
 }
 
-/* ── 9. ESC HINT — kbd-style вместо monospace uppercase ────────────────────── */
+/* ── 9. ESC HINT — kbd style instead of monospace uppercase ────────────────────── */
 
 .settings-scene .settings-panel-esc {
-    display: none !important; /* скрыт везде — показывается только JS при hover шапки */
+    display: none !important; /* hidden everywhere — shown only by JS on header hover */
 }
 
 .settings-scene .settings-panel-head:hover .settings-panel-esc {
@@ -434,7 +434,7 @@ body.dark-mode .settings-scene select.settings-select-control {
 .settings-scene .push-status-dot--warn  { background: #d97706 !important; }
 .settings-scene .push-status-dot--err   { background: var(--s-danger) !important; }
 
-/* Info-only rows в notifications не имеют hover */
+/* Info-only rows in notifications have no hover */
 .settings-scene #section-notifications .settings-row:not(:has(button)):not(:has(.toggle)) {
     cursor: default !important;
     opacity: 0.9 !important;
@@ -444,9 +444,9 @@ body.dark-mode .settings-scene select.settings-select-control {
     background: transparent !important;
 }
 
-/* ── 11. DOCUMENT LINKS — иконка external в кнопках "Открыть" ──────────────── */
+/* ── 11. DOCUMENT LINKS — an external-link icon on the open buttons ──────────────── */
 
-/* Добавляется через JS .has-external-icon */
+/* Added via JS .has-external-icon */
 .settings-scene a.btn-settings[target="_blank"] {
     gap: 6px !important;
 }
@@ -463,7 +463,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     flex-shrink: 0 !important;
 }
 
-/* ── 12. MOBILE NAV SCROLL FADE — gradient mask на краях ───────────────────── */
+/* ── 12. MOBILE NAV SCROLL FADE — a gradient mask at the edges ───────────────────── */
 
 @media (max-width: 768px) {
     body.settings-home-open .settings-nav-list,
@@ -484,14 +484,14 @@ body.dark-mode .settings-scene select.settings-select-control {
         ) !important;
     }
 
-    /* Снять маску когда список вертикальный (home-view) */
+    /* Drop the mask when the list is vertical (home view) */
     body.settings-home-open .settings-nav-list {
         -webkit-mask-image: none !important;
         mask-image: none !important;
     }
 }
 
-/* ── 13. ICON CONSISTENCY — единая система размеров ─────────────────────────── */
+/* ── 13. ICON CONSISTENCY — a unified size system ─────────────────────────── */
 
 /* Card header icons */
 .settings-scene .settings-card-header > .sun-icon,
@@ -502,7 +502,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     padding: 6px !important;
     border-radius: 50% !important;
     box-sizing: border-box !important;
-    /* иконка внутри: 28 - 12 = 16px — единый размер */
+    /* inner icon: 28 - 12 = 16px — a uniform size */
 }
 
 /* Nav item icons */
@@ -524,7 +524,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     height: var(--s-icon-sm) !important;
 }
 
-/* ── 14. CARD HOVER: удаляем на нон-интерактивных, добавляем depth ─────────── */
+/* ── 14. CARD HOVER: removed on non-interactive, depth added ─────────── */
 
 .settings-scene .settings-card:focus-within {
     box-shadow:
@@ -532,7 +532,7 @@ body.dark-mode .settings-scene select.settings-select-control {
         0 2px 8px rgba(0,0,0,.06) !important;
 }
 
-/* ── 15. SECTION TRANSITIONS — без expensive blur ────────────────────────────── */
+/* ── 15. SECTION TRANSITIONS — without expensive blur ────────────────────────────── */
 
 @keyframes settings-premium-section-in {
     from { opacity: 0; transform: translateY(8px); }
@@ -554,7 +554,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     filter: none !important;
 }
 
-/* Card stagger при входе секции */
+/* Card stagger on section entry */
 .settings-scene .settings-section.section-entering .settings-card:nth-child(1) { animation-delay: 0ms !important; }
 .settings-scene .settings-section.section-entering .settings-card:nth-child(2) { animation-delay: 40ms !important; }
 .settings-scene .settings-section.section-entering .settings-card:nth-child(3) { animation-delay: 80ms !important; }
@@ -571,13 +571,13 @@ body.dark-mode .settings-scene select.settings-select-control {
 
 /* ── 16. ACCESSIBILITY ────────────────────────────────────────────────────────── */
 
-/* Focus ring — единый стиль для всех интерактивных элементов */
+/* Focus ring — one style for all interactive elements */
 .settings-scene *:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--s-accent) 70%, transparent) !important;
     outline-offset: 2px !important;
 }
 
-/* Кнопки с focus — свой стиль */
+/* Focused buttons — their own style */
 .settings-scene .btn-settings:focus-visible,
 .settings-scene .nav-item:focus-visible {
     outline: 2px solid color-mix(in srgb, var(--s-accent) 65%, transparent) !important;
@@ -611,7 +611,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     top: 0 !important;
 }
 
-/* Reduced motion — полностью отключаем все анимации */
+/* Reduced motion — disable all animations entirely */
 @media (prefers-reduced-motion: reduce) {
     .settings-scene *,
     .settings-scene *::before,
@@ -627,7 +627,7 @@ body.dark-mode .settings-scene select.settings-select-control {
 
 /* ── 17. RANGE — min/max wrapper ─────────────────────────────────────────────── */
 
-/* Обёртка для range с подписями min/max создаётся через JS */
+/* The range wrapper with min/max labels is created via JS */
 .settings-scene .settings-range-row-inner {
     display: flex !important;
     flex-direction: column !important;
@@ -646,7 +646,7 @@ body.dark-mode .settings-scene select.settings-select-control {
     pointer-events: none !important;
 }
 
-/* ── 18. MNEMONIC — paste-all кнопка ─────────────────────────────────────────── */
+/* ── 18. MNEMONIC — the paste-all button ─────────────────────────────────────────── */
 
 .settings-scene .mnemonic-paste-all-btn {
     display: inline-flex !important;
@@ -681,9 +681,9 @@ body.dark-mode .settings-scene select.settings-select-control {
     gap: 10px !important;
 }
 
-/* ── 19. NOTIFICATIONS — visual hierarchy для action кнопок ─────────────────── */
+/* ── 19. NOTIFICATIONS — visual hierarchy for action buttons ─────────────────── */
 
-/* Включить = primary, Отключить = ghost без danger-веса */
+/* Enable = primary, Disable = ghost without danger weight */
 .settings-scene #disablePushBtn {
     background: transparent !important;
     color: var(--s-ink-2) !important;
@@ -699,20 +699,20 @@ body.dark-mode .settings-scene select.settings-select-control {
 
 /* ── 20. SWIPE-BACK VISUAL FEEDBACK ─────────────────────────────────────────── */
 
-/* Индикатор edge-свайпа (активируется JS-классом) */
+/* Edge-swipe indicator (activated by a JS class) */
 .settings-scene .settings-panel-body.is-swipe-active {
     transition: transform 0.02s linear !important;
 }
 
-/* ── 21. NAV GROUP DIVIDERS — видимые разделители между группами ─────────────── */
+/* ── 21. NAV GROUP DIVIDERS — visible dividers between groups ─────────────── */
 
-/* Тонкий разделитель между группами в detail-nav */
+/* A thin divider between groups in the detail nav */
 body.settings-home-open .settings-nav-group + .settings-nav-group > .nav-item:first-child {
     box-shadow: inset 0 1px 0 var(--sx-line, color-mix(in srgb, var(--s-line) 40%, transparent)) !important;
     margin-top: 0 !important;
 }
 
-/* Группы nav в home-view: добавляем section separator */
+/* Nav groups in the home view: add a section separator */
 body.settings-home-open .settings-nav-group-separator {
     height: 1px !important;
     background: color-mix(in srgb, var(--s-line) 40%, transparent) !important;
@@ -733,14 +733,14 @@ body.settings-home-open .settings-nav-avatar-wrap::after {
     border: 2.5px solid var(--sx-bg-elev, var(--paper)) !important;
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--s-success) 40%, transparent) !important;
     z-index: 2 !important;
-    display: none !important; /* включается JS когда online */
+    display: none !important; /* enabled by JS when online */
 }
 
 body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     display: block !important;
 }
 
-/* ── 23. DANGER ZONE — больше visual separation ──────────────────────────────── */
+/* ── 23. DANGER ZONE — more visual separation ──────────────────────────────── */
 
 .settings-scene .settings-danger-panel {
     background: color-mix(in srgb, var(--s-danger) 5%, var(--s-surface)) !important;
@@ -749,12 +749,12 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     margin-top: 8px !important;
 }
 
-/* Секция account-danger — дополнительный top-margin для visual separation */
+/* The account-danger section — extra top margin for visual separation */
 .settings-scene #section-account-danger {
     margin-top: 24px !important;
 }
 
-/* ── 24. DESKTOP — ограничение ширины контента ───────────────────────────────── */
+/* ── 24. DESKTOP — content width cap ───────────────────────────────── */
 
 @media (min-width: 900px) {
     .settings-scene #section-profile .settings-body-copy,
@@ -767,7 +767,7 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     }
 }
 
-/* ── 25. SCROLLBAR — тонкая стилизация ──────────────────────────────────────── */
+/* ── 25. SCROLLBAR — subtle styling ──────────────────────────────────────── */
 
 .settings-scene .settings-content::-webkit-scrollbar {
     width: 5px !important;
@@ -786,7 +786,7 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     background: transparent !important;
 }
 
-/* ── 27. TOTP VERIFY INPUT — лучший стиль ──────────────────────────────────── */
+/* ── 27. TOTP VERIFY INPUT — improved styling ──────────────────────────────────── */
 
 .settings-scene .totp-verify-controls {
     display: flex !important;
@@ -796,13 +796,13 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     padding: 4px 0 !important;
 }
 
-/* ── 28. ALERT — чуть медленнее для лучшего ощущения ──────────────────────── */
+/* ── 28. ALERT — slightly slower for better feel ──────────────────────── */
 
 .settings-scene .settings-alert {
     animation-duration: 280ms !important;
 }
 
-/* ── 29. PRIVACY CHEVRON — правильный размер ─────────────────────────────────── */
+/* ── 29. PRIVACY CHEVRON — the right size ─────────────────────────────────── */
 
 .settings-scene .settings-privacy-chevron {
     width: 14px !important;
@@ -817,7 +817,7 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     color: var(--s-accent) !important;
 }
 
-/* ── 30. PROFILE FIELD LABELS — чуть крупнее ────────────────────────────────── */
+/* ── 30. PROFILE FIELD LABELS — slightly larger ────────────────────────────────── */
 
 .settings-scene .settings-field-label {
     font-size: 11px !important;
@@ -836,21 +836,21 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
     margin-top: 6px !important;
 }
 
-/* Bio counter — чётче видно */
+/* Bio counter — more visible */
 .settings-scene .settings-bio-counter {
     font-family: var(--font-mono, monospace) !important;
     font-size: 11px !important;
     opacity: 0.75 !important;
 }
 
-/* ── 31. SECURITY SUMMARY CARD — убираем уродливую left-border ──────────────── */
+/* ── 31. SECURITY SUMMARY CARD — drop the ugly left border ──────────────── */
 
 .settings-scene .settings-security-summary-card {
     border-left: 0 !important;
     border-top: 3px solid color-mix(in srgb, var(--s-accent) 55%, transparent) !important;
 }
 
-/* ── 32. E2E STATUS CARD — warning border top вместо left ───────────────────── */
+/* ── 32. E2E STATUS CARD — a warning border on top instead of left ───────────────────── */
 
 .settings-scene .settings-e2e-status-card {
     border-left: 0 !important;
@@ -865,7 +865,7 @@ body.settings-home-open .settings-nav-avatar-wrap.is-online::after {
         bottom: calc(20px + env(safe-area-inset-bottom, 0px)) !important;
     }
 
-    /* На мобиле totp verify input — на всю ширину */
+    /* On mobile the totp verify input spans the full width */
     .settings-scene .totp-verify-input {
         width: 100% !important;
         font-size: 20px !important;

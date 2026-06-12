@@ -1,6 +1,6 @@
-// Chat surface animations: вход/перерисовка/desktop->mobile-reveal.
-// Каждая функция тщательно очищает свой timer/raf, чтобы повторные
-// вызовы во время уже идущей анимации не дёргали dom-class hot loop.
+// Chat surface animations: enter/redraw/desktop->mobile reveal.
+// Each function carefully clears its timer/raf so that repeated calls
+// during an in-flight animation do not thrash the dom-class hot loop.
 
 import { applyListPerfGuard } from './motion.js';
 

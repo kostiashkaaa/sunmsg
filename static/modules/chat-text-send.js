@@ -102,7 +102,7 @@ export async function sendTextMessageFlow({
 
         const encryptedPayloadStr = await encryptForCurrentChat(message);
 
-        // Guard: пользователь переключил чат пока шло шифрование
+        // Guard: the user switched chats while encryption was in flight
         if (typeof getCurrentChatId === 'function' && getCurrentChatId() !== currentChatId) {
             failPendingMessage?.(clientId);
             return;

@@ -102,7 +102,7 @@ export async function openChatDb(userId) {
         return activeDb;
     }
 
-    // Если уже идёт открытие — ждём его завершения, не запускаем параллельное
+    // If an open is already in flight, await it instead of starting a parallel one
     if (_openingPromise) return _openingPromise;
 
     _openingPromise = (async () => {

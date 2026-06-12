@@ -698,7 +698,7 @@ export function initLightbox() {
         applyTransform: _applyLightboxTransform,
     });
 
-    // Экспортируем через window для доступа из chat-runtime при смене чата
+    // Exported via window for access from chat-runtime on chat switch
     window._resetLightboxGallery = function () {
         if (_isLightboxOpen()) _closeLightbox();
         lightboxImages = [];

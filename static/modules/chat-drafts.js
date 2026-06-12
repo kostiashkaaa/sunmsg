@@ -1,5 +1,5 @@
-// Chat drafts: persist composer text per-chat, sync с realtime-обновлениями,
-// показ превью в сайдбаре. Вынесено из chat.js без изменений в поведении.
+// Chat drafts: persist composer text per-chat, sync with realtime updates,
+// show previews in the sidebar. Extracted from chat.js with no behavior change.
 
 const CHAT_DRAFT_SAVE_DEBOUNCE_MS = 700;
 const ENCRYPTED_PREVIEW_LOADING_TOKEN = '__SUN_ENCRYPTED_LOADING__';

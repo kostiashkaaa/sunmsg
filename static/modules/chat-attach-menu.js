@@ -1,5 +1,5 @@
-// Attach menu (скрепка composer): открытие меню «Фото/Видео» vs «Файл»,
-// настройка accept input, делегирование загрузки в handleFileUpload.
+// Attach menu (composer paperclip): opens the Photo/Video vs File menu,
+// configures the input accept attr, delegates uploads to handleFileUpload.
 
 import { initAttachMenuPortal } from './attach-menu-portal.js';
 

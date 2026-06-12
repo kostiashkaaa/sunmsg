@@ -1,5 +1,5 @@
-// Clipboard paste + drag&drop file uploads. Привязывает обработчики к
-// composer-input и chat-area, делегирует загрузку через handleFileUpload.
+// Clipboard paste + drag&drop file uploads. Binds handlers to the
+// composer input and chat area, delegates uploads via handleFileUpload.
 
 export function initChatClipboardAndDrop(deps = {}) {
     const {

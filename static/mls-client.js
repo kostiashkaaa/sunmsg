@@ -1,19 +1,19 @@
 /**
  * MLS Client — RFC 9420 (Messaging Layer Security)
  *
- * Нативная реализация subset MLS для групповых чатов.
- * Зависимость: crypto-v2.js (X25519, Ed25519, HKDF, AES-GCM).
+ * Native implementation of an MLS subset for group chats.
+ * Dependency: crypto-v2.js (X25519, Ed25519, HKDF, AES-GCM).
  *
- * Реализует:
- *   - KeyPackage: генерация, публикация, импорт
- *   - Группа: создание, Welcome (приглашение), Commit (обновление ключей)
- *   - TreeKEM упрощённая версия: общий epoch secret без полного дерева
- *   - Шифрование / расшифровка группового сообщения через epoch key
+ * Implements:
+ *   - KeyPackage: generation, publication, import
+ *   - Group: creation, Welcome (invitation), Commit (key update)
+ *   - Simplified TreeKEM: a shared epoch secret without the full tree
+ *   - Group message encryption / decryption via the epoch key
  *
- * Упрощения относительно RFC 9420:
- *   - Дерево хранится как плоский список leaf nodes (достаточно для ≤1000 участников)
- *   - Нет поддержки extensions и capabilities
- *   - Commit = обновление epoch secret через HKDF с текущим roster
+ * Simplifications relative to RFC 9420:
+ *   - The tree is stored as a flat list of leaf nodes (fine for ≤1000 members)
+ *   - No support for extensions and capabilities
+ *   - Commit = epoch secret update via HKDF with the current roster
  */
 
 'use strict';
@@ -29,13 +29,13 @@ function _cv2() {
 
 // ── KeyPackage ────────────────────────────────────────────────────────────────
 //
-// Содержит X25519 init key (для Welcome encryption) и Ed25519 identity key.
-// Подписан Ed25519 ключом пользователя.
+// Contains the X25519 init key (for Welcome encryption) and the Ed25519 identity key.
+// Signed with the user's Ed25519 key.
 
 async function generateKeyPackage(identityEd25519PrivKey, identityEd25519PubB64u, userId) {
     const cv2 = _cv2();
 
-    // Ephemeral X25519 — используется для шифрования Welcome
+    // Ephemeral X25519 — used to encrypt the Welcome
     const initKeyPair = await cv2.generateX25519KeyPair();
 
     const pkg = {
@@ -83,7 +83,7 @@ async function verifyKeyPackage(pkg) {
     return cv2.ed25519Verify(pubKey, toVerify, pkg.signature);
 }
 
-// ── Группа ────────────────────────────────────────────────────────────────────
+// ── Group ────────────────────────────────────────────────────────────────────
 
 function _makeGroupId(chatId) {
     return `sun-mls-${chatId}`;
@@ -103,7 +103,7 @@ async function _rosterHash(memberIdentityKeys) {
     return _cv2().b64uEncode(hash);
 }
 
-// Создаёт новую MLS группу
+// Create a new MLS group
 async function createGroup(chatId, creatorIdentityKeyB64u) {
     const groupId = _makeGroupId(chatId);
     const epoch = 0;
@@ -115,32 +115,32 @@ async function createGroup(chatId, creatorIdentityKeyB64u) {
         groupId,
         chatId,
         epoch,
-        members,           // массив identity_key (Ed25519 pub b64u)
+        members,           // array of identity_key (Ed25519 pub b64u)
         epochSecret: _cv2().b64uEncode(epochSecret),
         rosterHash: rHash,
     };
 }
 
-// ── Welcome — приглашение в группу ────────────────────────────────────────────
+// ── Welcome — group invitation ────────────────────────────────────────────
 //
-// Welcome = epoch secret, зашифрованный X25519 ECDH с init_key получателя.
-// Инвайтер генерирует ephemeral X25519, делает ECDH с init_key нового члена,
-// шифрует epoch secret + roster через AES-GCM.
+// Welcome = the epoch secret encrypted via X25519 ECDH with the recipient's init_key.
+// The inviter generates an ephemeral X25519, runs ECDH with the new member's init_key,
+// and encrypts the epoch secret + roster via AES-GCM.
 
 async function createWelcome(
     groupState,
-    newMemberKeyPackage,               // KeyPackage объект нового участника
+    newMemberKeyPackage,               // the new member's KeyPackage object
     inviterEd25519PrivKey,
     inviterEd25519PubB64u
 ) {
     const cv2 = _cv2();
 
-    // Верифицируем KeyPackage нового участника
+    // Verify the new member's KeyPackage
     if (!(await verifyKeyPackage(newMemberKeyPackage))) {
         throw new Error('mls: invalid key package signature');
     }
 
-    // ECDH с init_key нового участника
+    // ECDH with the new member's init_key
     const ephemeral = await cv2.generateX25519KeyPair();
     const recipientInitPub = await cv2.importX25519Public(newMemberKeyPackage.init_key);
     const ephPriv = await cv2.importX25519Private(ephemeral.privateKeyJwk);
@@ -148,7 +148,7 @@ async function createWelcome(
 
     const wrappingKey = await cv2.hkdf(dhOut, new Uint8Array(32).buffer, 'SUN-MLS-WELCOME-v1', 32);
 
-    // Новый roster включает нового участника
+    // The new roster includes the new member
     const newMembers = [...groupState.members, newMemberKeyPackage.identity_key];
     const newRHash = await _rosterHash(newMembers);
     const newEpoch = groupState.epoch + 1;
@@ -188,7 +188,7 @@ async function createWelcome(
     welcome.sig = await cv2.ed25519Sign(inviterEd25519PrivKey, toSign);
     welcome.sig_alg = 'Ed25519';
 
-    // Обновляем состояние группы для инвайтера
+    // Update group state for the inviter
     const newGroupState = {
         ...groupState,
         epoch: newEpoch,
@@ -200,7 +200,7 @@ async function createWelcome(
     return { welcome, newGroupState };
 }
 
-// Принимает Welcome — инициализирует состояние группы для нового участника
+// Accept a Welcome — initialize group state for the new member
 async function processWelcome(welcome, myInitKeyPrivJwk, senderEd25519PubB64u) {
     const cv2 = _cv2();
 
@@ -232,11 +232,11 @@ async function processWelcome(welcome, myInitKeyPrivJwk, senderEd25519PubB64u) {
     return groupState;
 }
 
-// ── Commit — обновление ключей (key update / member removal) ─────────────────
+// ── Commit — key update / member removal ─────────────────
 
 async function createCommit(
     groupState,
-    newMembers,                  // новый список identity_key
+    newMembers,                  // the new identity_key list
     committerEd25519PrivKey,
     committerEd25519PubB64u
 ) {
@@ -311,7 +311,7 @@ async function processCommit(groupState, commit, senderEd25519PubB64u) {
     };
 }
 
-// ── Групповое шифрование / расшифровка ───────────────────────────────────────
+// ── Group encryption / decryption ───────────────────────────────────────
 
 async function encryptGroupMessage(
     groupState,
@@ -322,7 +322,7 @@ async function encryptGroupMessage(
     const cv2 = _cv2();
     const epochKey = cv2.b64uDecode(groupState.epochSecret);
 
-    // Derive per-message key from epoch secret + sequence number (предотвращает reuse)
+    // Derive per-message key from epoch secret + sequence number (prevents reuse)
     const msgSeq = cv2.b64uEncode(cv2.randomBytes(8));
     const msgKey = await cv2.hkdf(
         epochKey,
@@ -401,7 +401,7 @@ async function decryptGroupMessage(groupState, payloadStr, senderEd25519PubB64u 
     }
 }
 
-// ── Сериализация состояния группы ────────────────────────────────────────────
+// ── Group state serialization ────────────────────────────────────────────
 
 function serializeGroupState(state) {
     return JSON.stringify(state);

@@ -148,11 +148,11 @@ async function aesGcmDecrypt(keyBytes, ciphertext, iv) {
 
 // ── X3DH key agreement ────────────────────────────────────────────────────────
 //
-// Инициатор (Alice) вычисляет мастер-секрет из 4 ECDH операций:
+// The initiator (Alice) derives the master secret from 4 ECDH operations:
 //   DH1 = DH(IKa, SPKb)   IK Alice  × Signed Prekey Bob
 //   DH2 = DH(EKa, IKb)    Ephemeral × IK Bob
 //   DH3 = DH(EKa, SPKb)   Ephemeral × Signed Prekey Bob
-//   DH4 = DH(EKa, OPKb)   Ephemeral × One-Time Prekey Bob (опционально)
+//   DH4 = DH(EKa, OPKb)   Ephemeral × One-Time Prekey Bob (optional)
 //   masterSecret = HKDF(DH1 || DH2 || DH3 [|| DH4])
 
 async function x3dhInitiatorSecretAndEphemeral(
@@ -214,16 +214,16 @@ async function x3dhResponderSecret(
     return hkdf(ikm, salt, 'SUN-X3DH-v1', 64);
 }
 
-// ── One-shot E2EE (нет DR сессии, fallback для первого сообщения) ────────────
+// ── One-shot E2EE (no DR session, fallback for the first message) ────────────
 //
-// Шифрует сообщение для получателя у которого нет DR сессии.
-// Возвращает payload версии v=3 с ephemeral X3DH.
+// Encrypt a message for a recipient who has no DR session.
+// Returns a v=3 payload with an ephemeral X3DH.
 
 async function encryptMessageX3DH(
-    senderIdentityPrivKey,  // CryptoKey X25519 (приватный)
+    senderIdentityPrivKey,  // CryptoKey X25519 (private)
     senderIdentityPubB64u,  // string
     senderEd25519PrivKey,   // CryptoKey Ed25519
-    recipientBundle,        // prekey bundle от сервера
+    recipientBundle,        // prekey bundle from the server
     plaintext               // string
 ) {
     const { masterSecret, ephemeralPublicKeyB64u, usedSignedPrekeyId, usedOneTimePrekeyId } =
@@ -262,15 +262,15 @@ async function decryptMessageX3DH(
     recipientIdentityPrivKey,   // CryptoKey X25519
     recipientSignedPrekeyPriv,  // CryptoKey X25519
     recipientOneTimePrekeyPriv, // CryptoKey X25519 | null
-    senderEd25519PubB64u,       // string для верификации подписи
+    senderEd25519PubB64u,       // string for signature verification
     payloadStr                  // JSON string
 ) {
     const payload = JSON.parse(payloadStr);
     if (payload.v !== 3 || payload.proto !== 'x3dh') throw new Error('not_x3dh_v3');
 
-    // X3DH-payload всегда подписывается отправителем (см. encryptMessageX3DH).
-    // Если ключ известен, но подписи/её валидности нет — помечаем непроверенным,
-    // вместо того чтобы молча доверять.
+    // An X3DH payload is always signed by the sender (see encryptMessageX3DH).
+    // If the key is known but the signature is missing/invalid — mark unverified
+    // instead of silently trusting.
     let unverified = false;
     if (senderEd25519PubB64u && payload.sig) {
         const pubKey = await importEd25519Public(senderEd25519PubB64u);
@@ -307,10 +307,10 @@ async function decryptMessageX3DH(
     }
 }
 
-// ── Файловое шифрование ───────────────────────────────────────────────────────
+// ── File encryption ───────────────────────────────────────────────────────
 //
-// file_key — случайный 32-байтовый AES-256 ключ.
-// Сам файл шифруется локально, file_key отправляется внутри E2EE-сообщения.
+// file_key is a random 32-byte AES-256 key.
+// The file itself is encrypted locally; file_key travels inside the E2EE message.
 
 async function encryptFile(fileArrayBuffer) {
     const fileKey = randomBytes(32);
@@ -342,14 +342,14 @@ async function decryptFile(encryptedBuffer, fileKeyB64u, ivB64u, expectedSha256B
 
 if (typeof window !== 'undefined') {
     window.cryptoV2 = {
-        // Ключевые пары
+        // Key pairs
         generateX25519KeyPair,
         generateEd25519KeyPair,
         importX25519Public,
         importX25519Private,
         importEd25519Public,
         importEd25519Private,
-        // Примитивы
+        // Primitives
         x25519DH,
         hkdf,
         aesGcmEncrypt,
@@ -361,10 +361,10 @@ if (typeof window !== 'undefined') {
         x3dhResponderSecret,
         encryptMessageX3DH,
         decryptMessageX3DH,
-        // Файлы
+        // Files
         encryptFile,
         decryptFile,
-        // Утилиты
+        // Utilities
         b64uEncode,
         b64uDecode,
         randomBytes,

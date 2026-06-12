@@ -116,9 +116,9 @@ export async function sendFileMessageFlow({
     const category = forceDocumentVisual ? 'file' : sourceCategory;
     const msgType = getMessageTypeByCategory(category);
     const providedAudioDuration = Number(options?.audioDurationSeconds);
-    // Для голосовых сначала используем длительность от рекордера и не ждём декода
-    // waveform — иначе на iOS Safari (webm/opus не декодируется) сообщение появлялось
-    // с большой задержкой и казалось «потерянным».
+    // For voice messages use the recorder's duration first and do not wait for the
+    // waveform decode — otherwise on iOS Safari (webm/opus does not decode) the message
+    // appeared with a long delay and felt "lost".
     const audioDurationSeconds = sourceCategory === 'audio'
         ? (Number.isFinite(providedAudioDuration) && providedAudioDuration > 0
             ? Math.max(1, Math.floor(providedAudioDuration))
@@ -279,7 +279,7 @@ export async function sendFileMessageFlow({
 
         const encrypted = await encryptForCurrentChat(payload);
 
-        // Guard: пользователь переключил чат пока шло шифрование
+        // Guard: the user switched chats while encryption was in flight
         if (typeof getCurrentChatId === 'function' && getCurrentChatId() !== currentChatId) {
             failPendingMessage?.(clientId);
             return;

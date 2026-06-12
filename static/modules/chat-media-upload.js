@@ -387,7 +387,7 @@ export async function buildAudioWaveformPeaks(file, barsCount = 48) {
 
         const globalMax = rawPeaks.reduce((acc, value) => Math.max(acc, value), 0);
         if (!(globalMax > 0)) {
-            // Тишина — возвращаем ровную низкую волну вместо fallback-псевдоволны
+            // Silence — return a flat low waveform instead of the fallback pseudo-wave
             return new Array(targetBars).fill(8);
         }
 
