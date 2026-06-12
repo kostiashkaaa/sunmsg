@@ -1,7 +1,10 @@
 # SUN Messenger
 
-Self-hosted, real-time messenger with end-to-end encryption, voice/video calls,
-and moderation tooling. Built on Flask + SocketIO with a PostgreSQL backend and a
+[![CI](https://github.com/kostiashkaaa/sunmsg/actions/workflows/ci.yml/badge.svg)](https://github.com/kostiashkaaa/sunmsg/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+Self-hosted, real-time messenger with client-side encrypted messaging,
+voice/video calls, and moderation tooling. Built on Flask + SocketIO with a PostgreSQL backend and a
 no-build-step vanilla-JS frontend.
 
 > **Status:** active development. The web app and background services are
@@ -10,7 +13,9 @@ no-build-step vanilla-JS frontend.
 ## Features
 
 - **Real-time messaging** over SocketIO (WebSocket with polling fallback)
-- **End-to-end encryption** for direct messages and media
+- **Client-side encryption** for direct messages and media — currently an
+  RSA-based scheme (no forward secrecy); an X3DH + Double Ratchet + MLS stack is
+  implemented and being wired in (see [security architecture](docs/security-architecture.md))
 - **Voice & video calls** via a mediasoup SFU (`server-mediasoup/`)
 - **Group chats**, contacts, presence, typing indicators, reactions, replies
 - **Authentication** — session-based with optional TOTP 2FA and WebAuthn/FIDO2
