@@ -46,6 +46,13 @@ tests/.visual_artifacts/
 
 _legacy_archive/
 
+# Server backups (contain secrets: .env files, DB dumps)
+server-backups/
+
+# Design-tool state files
+.design-canvas.state.json
+.thumbnail
+
 .claude/
 output/
 
