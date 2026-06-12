@@ -117,8 +117,13 @@ full security model: authentication (sessions, TOTP, WebAuthn), end-to-end
 encryption (and its current transition state), CSP, fail-closed production boot
 checks, abuse-resistant rate limiting, and the data-integrity layer.
 
-To report a vulnerability, please contact the maintainer privately rather than
-opening a public issue.
+To report a vulnerability, see [`SECURITY.md`](SECURITY.md) — please report
+privately rather than opening a public issue.
+
+## Contributing
+
+Contributions are welcome. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to set
+up a dev environment, the conventions the codebase follows, and the PR checklist.
 
 ## License
 
